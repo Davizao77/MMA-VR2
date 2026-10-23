@@ -423,10 +423,11 @@ const makeGlove=(()=>{
 
 // orienta a luva do jogador: nós dos dedos apontam na direção ombro→mão, polegar pra cima, palma pra dentro
 const glX=new THREE.Vector3(),glY=new THREE.Vector3(),glZ=new THREE.Vector3(),glS=new THREE.Vector3(),glM=new THREE.Matrix4(),glQ=new THREE.Quaternion();
+const glC=new THREE.Vector3(),glCQ=new THREE.Quaternion();
 function orientGlove(h,eye,fw,dt){
   if(MODELO_COTOVELO=='antigo')glS.set(eye.x-fw.z*h.s*.19,eye.y-.22,eye.z+fw.x*h.s*.19);else shoulderOf(h,eye,fw,dt,glS);   // antigo = modelo antigo do cotovelo
  glY.copy(h.pos).sub(glS);if(glY.lengthSq()<1e-6)return;glY.normalize().negate();
- glZ.set(0,1,0).addScaledVector(fw,.5);glZ.addScaledVector(glY,-glZ.dot(glY));if(glZ.lengthSq()<1e-6)glZ.set(0,0,1);glZ.normalize();
+ glZ.set(0,1,0).addScaledVector(fw,.5);if(h.g){h.g.getWorldQuaternion(glCQ);glC.set(0,1,0).applyQuaternion(glCQ);glZ.multiplyScalar(.35).addScaledVector(glC,.65)}glZ.addScaledVector(glY,-glZ.dot(glY));if(glZ.lengthSq()<1e-6)glZ.set(0,0,1);glZ.normalize();
  glX.crossVectors(glY,glZ);glM.makeBasis(glX,glY,glZ);glQ.setFromRotationMatrix(glM);
  h.mesh.quaternion.slerp(glQ,1-Math.exp(-dt*28))}
 function limb(rT,rB,h,mat){const pts=[],n=8,k=6;
@@ -949,21 +950,21 @@ class Enemy{
  reset(){this.ko0();this.wind=0;this.hpH=100;this.hpB=100;this.bal=1;this.s=1;this.gt=0;this.gu=0;this.gtu=0;this.atk=null;this.yo=0;this.fe=null;this.nextAtk=2.5;this.gl=0;this.wr.L=this.wr.R=this.rl.L=this.rl.R=0;this.nog=this.dz=this.sg=0;this.mnt=false;this.kt=this.hn=0;this.cqs=null;this.ms=null;this.gh=null;this.bg=0;this.wH=this.wB=0;this.gm=null;this.cmb=0;this.cf=false;this.pn=null;for(const p of this.parts)p.reset();if(this.hair)this.hair.reset();this.clearBlood()}
  respawn(){this.atk=null;this.wind=0;this.bal=Math.max(this.bal,.6);this.s=1;this.gt=0;this.gu=0;this.gtu=0;this.fe=null;this.cqs=null;this.gh=null;this.wr.L=this.wr.R=this.rl.L=this.rl.R=0;this.nog=this.dz=0;for(const p of this.parts)p.reset();if(this.hair)this.hair.reset()}   // corpo perdido (fora da arena/NaN): recoloca em pé SEM mexer em vida, vigor, knockdowns ou rounds
  hit(p,v,spd,k=1,z){if(this.st=='fin'){return 0}   // nocauteado: soco não move o corpo (socar o chão não faz ele deslizar)
-  const hd=p.name=='head',bd=p.name=='chest'||p.name=='abdomen',pw=punchPower(spd),pn=pw/3,m=z?z.m:1,dmg=(hd?15:bd?7:2.5)*pw*m*k/DIF.hp,pc=Math.min(pw,1.5);
+  const hd=p.name=='head',bd=p.name=='chest'||p.name=='abdomen',pw=punchPower(spd),pn=pw/3,m=z?z.m:1,dwn=Math.min(1,Math.max(0,-v.y)/(Math.hypot(v.x,v.y,v.z)||1)*1.6),dmg=(hd?15:bd?7:2.5)*pw*m*k/DIF.hp,pc=Math.min(pw,1.5);
   if(hd){const h0=this.hpH;this.hpH=Math.max(0,this.hpH-dmg);this.injH+=(h0-this.hpH)*.1;this.mnH=Math.min(this.mnH,this.hpH)}else{const b0=this.hpB;this.hpB=Math.max(0,this.hpB-dmg);this.injB+=(b0-this.hpB)*.1;this.mnB=Math.min(this.mnB,this.hpB);if(bd)this.stM=Math.max(5,this.stM-(b0-this.hpB)*.6)}   // soco na barriga reduz o vigor máximo
   if(bd&&k>=.5&&pw>.03&&this.st=='fight')this.bg=Math.min(2.4,Math.max(this.bg||0,.9)+.35),this.hc=Math.min(1.3,(this.hc||0)*.5+.12+.6*pc);   // apanhando na barriga: baixa a guarda lá por um tempo
-  this.bal=Math.max(0,this.bal-(pw>=4.52?Math.min(1.5,.6+(pw-4.52)/.8):0)*(hd?.5:bd?.3:.12)*k);   // só desequilibra com soco >= 15 m/s (pw 4.52)
+  this.bal=Math.max(0,this.bal-(pw>=4.52?Math.min(1.5,.6+(pw-4.52)/.8):0)*(hd?.5:bd?.3:.12)*k*(1-.9*dwn));   // soco de cima pra baixo quase não desequilibra; só desequilibra com soco >= 15 m/s (pw 4.52)
   if(k>=.5){
-   if(hd&&pn>=1.6)this.bal=Math.min(this.bal,.12);
-   if(z&&z.n=='chin'&&z.f>.7&&pn>=1.51)this.bal=Math.min(this.bal,Math.max(0,.3-.25*pc));   // queixo: queda/nocaute
+   if(hd&&pn>=1.6&&dwn<.5)this.bal=Math.min(this.bal,.12);
+   if(z&&z.n=='chin'&&z.f>.7&&pn>=1.51&&dwn<.5)this.bal=Math.min(this.bal,Math.max(0,.3-.25*pc));   // queixo: queda/nocaute
    if(z&&z.n=='sp'&&pw>=1.2){this.wind=Math.max(this.wind,(.8+2.2*pc)*(.4+.6*z.f));windSnd(this.P.head.p);        // boca do estômago: perde o ar
-    if(pn>=1.51&&z.f>.6)this.bal=Math.min(this.bal,.18)}}
+    if(pn>=1.51&&z.f>.6&&dwn<.5)this.bal=Math.min(this.bal,.18)}}
   if(this.hp<=0)this.koHp();
-  else if(this.st=='fight'&&k>=.5&&hd&&z&&z.n=='chin'&&z.f>.85&&pw>=4.8){this.kdT++;this.st='cd';this.dt2=4;this.bal=0;this.atk=null;this.wind=0;koSnd(this.P.head.p,false);spark(vP.set(z.x,z.y,z.z),2.4,0xff2a1a)}   // knockdown crítico: queixo perfeito + força máxima
-  const dn=this.P.pelvis.p.y<.62||this.st!='fight',f=p.mass*(this.P.pelvis.p.y<.62?.002:dn?.01:.03)*Math.max(k,.4)*(1+.3*(m-1))*(this.mnt?.03:1)*(bd?.35:1)*(dn?1:.6);   // PESO EM PÉ: o último fator (dn?1:.6) é o ajuste de "30% mais pesado". PRA VOLTAR COMO ANTES: apague só o "*(dn?1:.6)" (antes terminava em *(bd?.35:1);)   // montado: o peso dele em cima segura o corpo, quase não recua   // no chão quase não empurra
+  else if(this.st=='fight'&&k>=.5&&hd&&z&&z.n=='chin'&&z.f>.85&&pw>=4.8&&dwn<.5){this.kdT++;this.st='cd';this.dt2=4;this.bal=0;this.atk=null;this.wind=0;koSnd(this.P.head.p,false);spark(vP.set(z.x,z.y,z.z),2.4,0xff2a1a)}   // knockdown crítico: queixo perfeito + força máxima
+  const dn=this.P.pelvis.p.y<.62||this.st!='fight',f=p.mass*(this.P.pelvis.p.y<.62?.002:dn?.01:.03)*Math.max(k,.4)*(1+.3*(m-1))*(this.mnt?.03:1)*(bd?.35:1)*(dn?1:.45);   // PESO EM PÉ: o último fator (dn?1:.6) é o ajuste de "30% mais pesado". PRA VOLTAR COMO ANTES: apague só o "*(dn?1:.6)" (antes terminava em *(bd?.35:1);)   // montado: o peso dele em cima segura o corpo, quase não recua   // no chão quase não empurra
   if(pw>.05)this.hr=Math.max(this.hr,((hd?.25:.15)+.3*Math.min(pw,1.2))*(this.mnt?.15:1));   // janela de recuo: a cabeça fica mole de propósito logo após o soco
   if(pw>=4.52)this.kt=.8;   // só soco de knockdown libera o limite de velocidade do corpo
-  try{tv2.setValue(z?(z.x-p.p.x)*.25:0,z?(z.y-p.p.y)*.25:0,z?(z.z-p.p.z)*.25:0);p.b.applyImpulse(setV(v.x*f,v.y*f,v.z*f),tv2)}catch(e){p.b.applyCentralImpulse(setV(v.x*f,v.y*f,v.z*f))}
+  try{tv2.setValue(z?(z.x-p.p.x)*.25:0,z?(z.y-p.p.y)*.25:0,z?(z.z-p.p.z)*.25:0);p.b.applyImpulse(setV(v.x*f,v.y*f*(1-.7*dwn),v.z*f),tv2)}catch(e){p.b.applyCentralImpulse(setV(v.x*f,v.y*f*(1-.7*dwn),v.z*f))}
   return dmg}
  // soco bloqueado/desviado: não causa dano e a luva volta pra guarda a partir de onde estava
  cancelPunch(){const a=this.atk;if(!a)return;const q=qOf(a),T3=q.w+q.s+q.h;a.hit=1;if(a.t<T3){a.rx=a.ex||0;a.t=T3}}
@@ -996,7 +997,7 @@ class Enemy{
   m.t-=dt;if(m.t<=0){m.t=.8+Math.random()*1.2;const old=m.mode;
    m.mode=(this.hp<40||this.stam<25)?'back':(PL.hp<45||(m.pact<.6&&this.t>12)||m.vr>.5||Math.random()<.3)?'press':Math.random()<.2?'hold':'engage';
    if(m.mode=='press'&&old!='press')this.nextAtk=Math.min(this.nextAtk,.4)}
-  return m.mode=='back'?{dd:1.8,sp:1,st:.5}:m.mode=='press'?{dd:.85,sp:1.25,st:.2}:m.mode=='hold'?{dd:1.35,sp:.8,st:.5}:{dd:1,sp:.9,st:.35}}
+  return m.mode=='back'?{dd:1.5,sp:.7,st:.5}:m.mode=='press'?{dd:.85,sp:1.25,st:.2}:m.mode=='hold'?{dd:1.35,sp:.8,st:.5}:{dd:1,sp:.9,st:.35}}
  // depois do passo da física, braço/luva mostram exatamente a pose do IK (o solver das juntas não mexe mais no visual → sem tremor)
  applyPins(){for(const p of this.parts)if(p.pn){p.pn=0;p.p.copy(p.pnX);p.q.copy(p.pnQ);p.mesh.position.copy(p.p);p.mesh.quaternion.copy(p.q)}}
  pin(p,x,q,dt){if(!p.pnX){p.pnX=new THREE.Vector3();p.pnQ=new THREE.Quaternion()}p.pnX.copy(x);p.pnQ.copy(q);p.pn=1;tt.setIdentity();tt.setOrigin(setV(x.x,x.y,x.z));tq.setValue(q.x,q.y,q.z,q.w);tt.setRotation(tq);p.b.setWorldTransform(tt);p.b.getMotionState().setWorldTransform(tt);
@@ -1124,7 +1125,7 @@ class Enemy{
   // IA
   const dx=tp.x-pel.p.x,dz=tp.z-pel.p.z,dist=Math.hypot(dx,dz)||1,nx=dx/dist,nz=dz/dist,want=Math.atan2(dx,dz);
   this.sT-=dt;if(this.sT<0){this.dirS*=-1;this.sT=1.5+Math.random()*2}
-  const ai=this.think(dt,tp,dist,nx,nz);let fw=cl((dist-ai.dd)*2.4,-.9,1.1)*ai.sp*(1+(DIF.ag-1)*.3);if(this.atk){const q=qOf(this.atk),t=this.atk.t,by=this.atk.bd;if(t>=q.w*(by?1:.5)-.03&&t<q.w+q.s+q.h&&dist>(by?.7:.55))fw=by?1.9:2.5}const st=dist<1.9&&!this.atk?ai.st*this.dirS:0;
+  const ai=this.think(dt,tp,dist,nx,nz);let fw=cl((dist-ai.dd)*2.4,-.9,1.1)*ai.sp*(1+(DIF.ag-1)*.3);if(fw<0)fw*=.5;if(this.atk){const q=qOf(this.atk),t=this.atk.t,by=this.atk.bd;if(t>=q.w*(by?1:.5)-.03&&t<q.w+q.s+q.h&&dist>(by?.7:.55))fw=by?1.9:2.5}const st=dist<1.9&&!this.atk?ai.st*this.dirS:0;
   this.vd.set(nx*fw+nz*st,0,nz*fw-nx*st);
   // sustentação (pernas carregam o peso; pelve só assiste)
   const hs=held?(hH||hT?.8:hL==3?.6:hL?.9:.98):1,Mt=this.mass,mu=pel.mass+P.abdomen.mass+ch.mass+P.head.mass;
@@ -1445,7 +1446,7 @@ function buildAdj(geo,n){const idx=geo.index.array,S=Array.from({length:n},()=>n
 // Fios e pontos são malhas finas coladas na pele (rosto: referencial da cabeça; tronco: vértices da pele animada) — nada de pintar vértice,
 // então não existe mais "pele vermelha". O sangue só nasce de golpes: cabeça → feridas do rosto; tronco → respingos/fios curtos só onde apanhou.
 // nível de sangue pelo HP: nada acima de 80%; sobe contínuo e suave (80%→pouco, 50%→bastante, 40%→muito, 30%→pra caramba)
-function bloodLvl(hp){if(hp>=80)return 0;return Math.pow((80-hp)/80,.6)}
+function bloodLvl(hp){if(hp>=92)return 0;return Math.min(1,1.35*Math.pow((92-hp)/92,.5))}
 const rvC=new THREE.Vector3(),rvN=new THREE.Vector3();
 const BX_NOSE=new THREE.Vector3(0,-.04,.1),BX_MOUTH=new THREE.Vector3(0,-.078,.097);
 const bxA=new THREE.Vector3(),bxB=new THREE.Vector3(),bxC=new THREE.Vector3(),bxN=new THREE.Vector3(),bxG=new THREE.Vector3(),bxQ=new THREE.Quaternion(),
@@ -1689,7 +1690,7 @@ function bxChest(en,lvl,pw){if(lvl<.08)return;const W=en.bw,L=W.B,head=en.P.head
 
 // ---- hematomas: manchas macias no rosto; crescem e escurecem com golpes repetidos, mudam de cor com o tempo e NÃO saem no intervalo ----
 let bxMH=null;
-function bruiseInit(en){if(!bxMH)bxMH=new THREE.MeshStandardMaterial({vertexColors:true,alphaMap:bTex(64,64,(g,w,h)=>{const r=g.createRadialGradient(32,32,0,32,32,31);r.addColorStop(0,'#fff');r.addColorStop(.5,'#9a9a9a');r.addColorStop(1,'#000');g.fillStyle=r;g.fillRect(0,0,w,h)}),transparent:true,opacity:.74,roughness:.75,metalness:0,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
+function bruiseInit(en){if(!bxMH)bxMH=new THREE.MeshStandardMaterial({vertexColors:true,alphaMap:bTex(64,64,(g,w,h)=>{const r=g.createRadialGradient(32,32,0,32,32,31);r.addColorStop(0,'#fff');r.addColorStop(.5,'#9a9a9a');r.addColorStop(1,'#000');g.fillStyle=r;g.fillRect(0,0,w,h)}),transparent:true,opacity:.42,roughness:.75,metalness:0,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
  const N=16,g=new THREE.BufferGeometry(),pos=new THREE.BufferAttribute(new Float32Array(N*12),3).setUsage(THREE.DynamicDrawUsage),col=new THREE.BufferAttribute(new Float32Array(N*12),3).setUsage(THREE.DynamicDrawUsage),uv=new Float32Array(N*8),ix=new Uint32Array(N*6);
  for(let i=0;i<N;i++){uv.set([0,0,1,0,1,1,0,1],i*8);ix.set([i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3],i*6)}
  g.setAttribute('position',pos);g.setAttribute('color',col);g.setAttribute('uv',new THREE.BufferAttribute(uv,2));g.setIndex(new THREE.BufferAttribute(ix,1));
@@ -1699,16 +1700,16 @@ function bruiseHit(en,hz,pw){if(pw<.3)return;const W=bloodInit(en),H=W.H,head=en
  const g=bxT.copy(hz).sub(head.p).applyQuaternion(bxQ);faceSnap(g.x,g.y,g.z,bxU);faceSurf(bxU,bxP1,bxN1);
  if(bxP1.z<.005||bxP1.y>.07)return;const P0=bxP1.clone();
  const b=H.l.find(o=>Math.hypot(o.x-bxP1.x,o.y-bxP1.y,o.z-bxP1.z)<.03);
- if(b){b.T=Math.min(.075,b.T+.004+.008*pw);b.i=Math.min(1,b.i+.22*pw);b.tc=W.t;b.x+=(bxP1.x-b.x)*.15;b.y+=(bxP1.y-b.y)*.15;b.z+=(bxP1.z-b.z)*.15}
+ if(b){b.T=Math.min(.035,b.T+.0015+.003*pw);b.i=Math.min(.6,b.i+.1*pw);b.tc=W.t;b.x+=(bxP1.x-b.x)*.15;b.y+=(bxP1.y-b.y)*.15;b.z+=(bxP1.z-b.z)*.15}
  else{if(H.l.length>=H.N){let k=0;for(let i=1;i<H.l.length;i++)if(H.l[i].i<H.l[k].i)k=i;H.l.splice(k,1)}
-  H.l.push({x:bxP1.x,y:bxP1.y,z:bxP1.z,nx:bxN1.x,ny:bxN1.y,nz:bxN1.z,s:0,T:.02+.016*pw,i:Math.min(1,.3+.3*pw),t0:W.t+12,tc:W.t,rot:Math.random()*6.28,ar:1+.5*Math.random()})}faceFxHit(en,W,P0,pw)}
+  H.l.push({x:bxP1.x,y:bxP1.y,z:bxP1.z,nx:bxN1.x,ny:bxN1.y,nz:bxN1.z,s:0,T:.009+.007*pw,i:Math.min(.5,.2+.15*pw),t0:W.t+12,tc:W.t,rot:Math.random()*6.28,ar:1+.5*Math.random()})}faceFxHit(en,W,P0,pw)}
 function bruiseTick(W,dt){const H=W.H,P=H.pos.array,C=H.col.array,t=W.t;P.fill(0);
  H.l.forEach((b,i)=>{const gr=cl((t-b.t0)/28,0,1);b.s+=(b.T-b.s)*Math.min(1,dt*.08);const sz=b.s*sm3(gr);if(sz<1e-4)return;
   let tx=-b.nz,tz=b.nx,tl=Math.hypot(tx,tz);if(tl<.2){tx=1;tz=0;tl=1}tx/=tl;tz/=tl;
   const ux=b.ny*tz,uy=b.nz*tx-b.nx*tz,uz=-b.ny*tx,c=Math.cos(b.rot),s=Math.sin(b.rot),ax=tx*c+ux*s,ay=uy*s,az=tz*c+uz*s,qx=-tx*s+ux*c,qy=uy*c,qz=-tz*s+uz*c,
    hw=sz*b.ar,hh=sz/b.ar,o=i*12,cx=b.x+b.nx*.0004,cy=b.y+b.ny*.0004,cz=b.z+b.nz*.0004,
-   age=cl((t-b.tc)/160,0,1),k=.65+.35*b.i,f=Math.min(1,age*2),f2=Math.max(0,age*2-1),   // vermelho-rosado → roxo → azul-escuro
-   r=b.pu?(.40-.12*f)*k:(.72-.20*f-.08*f2)*k,gg=b.pu?.1*k:(.08-.03*f+.02*f2)*k,bb=b.pu?(.32-.06*f)*k:(.09+.03*f+.06*f2)*k;
+   age=cl((t-b.tc)/160,0,1),k=.95+.2*b.i,f=Math.min(1,age*2),f2=Math.max(0,age*2-1),   // vermelho-rosado → roxo → azul-escuro
+   r=b.pu?(.55-.10*f)*k:(.80-.14*f-.05*f2)*k,gg=b.pu?.2*k:(.2-.04*f+.02*f2)*k,bb=b.pu?(.42-.04*f)*k:(.2+.03*f+.06*f2)*k;
   for(let q=0;q<4;q++){const sa=BXK[q][0]*hw,sb=BXK[q][1]*hh,j=o+q*3;P[j]=cx+ax*sa+qx*sb;P[j+1]=cy+ay*sa+qy*sb;P[j+2]=cz+az*sa+qz*sb;C[j]=r;C[j+1]=gg;C[j+2]=bb}});
  H.pos.needsUpdate=true;H.col.needsUpdate=true}
 
@@ -1781,7 +1782,7 @@ function floorClear(){pDum.scale.setScalar(0);pDum.rotation.set(0,0,0);pDum.upda
 function impactFx(en,h,hz,pw,crit,p){
  const head=p.name=='head',torso=p.name=='chest'||p.name=='abdomen'||p.name=='pelvis',hp=head?en.mnH:en.mnB;   // sangue segue o menor HP já atingido: não some ao levantar
  imDir.copy(h.v);const sp=imDir.length();if(sp<1e-3)imDir.set(0,0,-1);else imDir.multiplyScalar(1/sp);
- const l0=bloodLvl(hp),fr=en.frag||0,lvl=l0>0?Math.min(1,l0*(1+.5*fr)+.06*fr):0;   // rosto frágil (pós-intervalo): sangra mais fácil e mais
+ const l0=bloodLvl(hp),fr=en.frag||0,lvl=l0>0?Math.min(1,l0*(1.25+.5*fr)+.08*fr):0;   // rosto frágil (pós-intervalo): sangra mais fácil e mais
  if(head)bruiseHit(en,hz,pw);
  if(head&&pw>=.5&&lvl<.6){   // saliva: cuspe leve no rosto que vai sumindo conforme o sangue entra
   const n=Math.round((1-lvl/.6)*(3+6.5*pw));
@@ -2061,7 +2062,7 @@ function trainTick(dt,now){const k=TR.k;
   else if(k=='pm'){pmHit(h,now)}
   else if(k=='dm'){dg.updateMatrixWorld(true);if((h.tc.get('dm')||0)>now)continue;const spd=h.v.length();if(spd<HMIN)continue;let bz=null,bd=9,bw=null;
    for(const z of DZ){const w=dg.localToWorld(tmpA.set(z[2],z[3],z[4])),d=segDist(h.pp,h.pos,w)-z[5];if(d<.07){const s=d-(z[6]>1?1:0);if(s<bd){bd=s;bz=z;bw=w.clone()}}}
-   if(!bz||vA.copy(bw).sub(h.pos).normalize().dot(h.v)/spd<.3)continue;h.tc.set('dm',now+.3);
+   if(!bz||vA.copy(bw).sub(h.pos).normalize().dot(h.v)/spd<.3)continue;h.tc.set('dm',now+.15);
    const ve=pv0(h,spd),pw=punchPower(ve),dmg=(bz[1]=='h'?15:bz[1]=='b'?7:2.5)*pw*bz[6],crit=bz[6]>1;
    TR.dmg+=dmg;TR.hits++;if(crit)TR.crit++;TR.best=Math.max(TR.best,dmg);TR.max=Math.max(TR.max,ve);TR.last=bz[0]+(crit?' ×'+bz[6]:'')+'  -'+dmg.toFixed(1);TR.lc=crit?'#ffd23c':'#fff';TR.dirty=true;
    popup(bw,'-'+dmg.toFixed(1),crit?'#ffd23c':'#ffffff');const hh=bw.y/1.7;DM.vx+=h.v.x*.12*hh;DM.vz+=h.v.z*.12*hh;
@@ -2198,16 +2199,16 @@ R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
    const vt=q.owner&&(q.name=='head'||q.name=='chest'||q.name=='abdomen');if(vA.copy(q.p).sub(swP).normalize().dot(h.v)/spd<(vt?.1:.3))continue;const k2=q.dist(h.pos)+(vt||!q.owner?0:.08),c2=q.p.distanceTo(h.pos);if(k2<bt-.001||(Math.abs(k2-bt)<=.001&&c2<bd)){p=q;bd=c2;bt=k2;hcp.copy(swP)}}   // escolhe a parte em que a luva ENTROU mais fundo (cara x barriga); desempate: centro mais próximo; braço/perna só se não houver cabeça/tronco   // cabeça/tronco têm prioridade sobre braço/ombro tocado no mesmo trecho; toque de raspão (gancho/cruzado) agora conta
   if(!p)continue;
   const cs=vA.copy(p.p).sub(hcp).normalize().dot(h.v)/spd,ve=punchVel(h,spd,cs),wk=ve<2;   // velocidade efetiva do golpe (m/s)
-  h.cd.set(p,now+(wk?.08:.22));h.cv.set(p,ve);h.lv=ve;
+  h.cd.set(p,now+(wk?.08:.16));h.cv.set(p,ve);h.lv=ve;
   if(p.owner){if(p.name=='head'||p.name=='chest'||p.name=='abdomen'||BLK_RE.test(p.name))h.lock=now+(wk?.06:.16);const en=p.owner,alive=en.alive;let sh=0;if(kf===1&&alive&&en.shield(p)){sh=1;kf=0;h.blk=now+.22;h.bk=0}   // guarda antecipada fechada nessa zona: bloqueado
    const zc=kf<1?null:hitZone(p,hcp,h.v),z=alive?zc:null,dmg=en.hit(p,h.v,ve,kf,z);
    if(kf<1&&en.alive){if(spd<1.5)continue;const at=en.atk;if(BLK_RE.test(p.name)){if(at&&!at.hit&&p.name.endsWith(at.n))en.cancelPunch();spark(p.p);punchSnd(.4,'glove')}else if(sh){spark(h.pos);punchSnd(.4,'glove')}else punchSnd(.25,'body');buzz(h,.6,50);continue}
    strike(h,p,ve,dmg,z,alive,zc)}
   else{p.b.applyCentralImpulse(setV(h.v.x*2,h.v.y*2,h.v.z*2));buzz(h,Math.min(1,spd/8),40);punchSnd(Math.min(1,spd/10),'limb')}}
  // cotovelada: ponta do cotovelo; corta (sangra mesmo com a vida alta) e dá mais dano que o soco
- for(const h of hands){if(h.j||RD.ph!='fight'||(h.lock||0)>now||h.es<1.7)continue;
-  elT.copy(h.el).sub(h.pos).normalize().multiplyScalar(.035).add(h.el);let p=null,bd=9;
-  for(const q of GR){if(!q.owner||BLK_RE.test(q.name)||(h.ecd.get(q)||0)>now)continue;const d=q.dist(elT);if(d>.075||d>=bd)continue;if(vA.copy(q.p).sub(elT).normalize().dot(h.ev)/h.es<.3)continue;p=q;bd=d}
+ for(const h of hands){if(h.j||RD.ph!='fight'||(h.lock||0)>now||h.es<1.3)continue;
+  elT.copy(h.el).sub(h.pos).normalize().multiplyScalar(.1).add(h.el);let p=null,bd=9;
+  for(const q of GR){if(!q.owner||BLK_RE.test(q.name)||(h.ecd.get(q)||0)>now)continue;const d=q.dist(elT);if(d>.13||d>=bd)continue;if(vA.copy(q.p).sub(elT).normalize().dot(h.ev)/h.es<.12)continue;p=q;bd=d}
   if(!p)continue;h.ecd.set(p,now+.4);h.lock=now+.3;
   const ve=Math.min(h.es*2.3,12),en=p.owner,alive=en.alive,zc=hitZone(p,elT,h.ev),head=p.name=='head',kk=head?'mnH':'mnB';
   en[kk]=Math.min(en[kk],head?60-30*Math.min(1,punchPower(ve)):76);
