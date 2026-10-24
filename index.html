@@ -429,9 +429,12 @@ const makeGlove=(()=>{
 // orienta a luva do jogador: nós dos dedos apontam na direção ombro→mão, polegar pra cima, palma pra dentro
 const glX=new THREE.Vector3(),glY=new THREE.Vector3(),glZ=new THREE.Vector3(),glS=new THREE.Vector3(),glM=new THREE.Matrix4(),glQ=new THREE.Quaternion();
 const glC=new THREE.Vector3(),glCQ=new THREE.Quaternion();
+const wdQ=new THREE.Quaternion(),lpQ=new THREE.Quaternion(),lpH=new THREE.Vector3(),lpX=new THREE.Vector3(),lpP=new THREE.Vector3(),lpA=new THREE.Vector3(),lpK=new THREE.Vector3(),lpU=new THREE.Vector3(),lpD=new THREE.Vector3(),lpS=new THREE.Quaternion(),lpF=new THREE.Quaternion(),lpI=new THREE.Quaternion();
+function wristDir(h,o){if(!h.g)return false;h.g.getWorldQuaternion(wdQ);const a=CFG.wp*.01745;o.set(0,Math.sin(a),-Math.cos(a)).applyQuaternion(wdQ);return true}   // direção do pulso = pra onde a mão aponta (livre: pode apontar pra dentro, pro rosto, pro peito)
 function orientGlove(h,eye,fw,dt){
   if(MODELO_COTOVELO=='antigo')glS.set(eye.x-fw.z*h.s*.19,eye.y-.22,eye.z+fw.x*h.s*.19);else shoulderOf(h,eye,fw,dt,glS);   // antigo = modelo antigo do cotovelo
- glY.copy(h.pos).sub(glS);if(glY.lengthSq()<1e-6)return;glY.normalize().negate();
+ glY.copy(h.pos).sub(glS);if(glY.lengthSq()<1e-6)return;glY.normalize().negate();if(wristDir(h,glC))glY.copy(glC).negate();   // VR: nós dos dedos na direção do pulso (controle); sem controle: ombro→mão
+ 
  glZ.set(0,1,0).addScaledVector(fw,.5);if(h.g){h.g.getWorldQuaternion(glCQ);glC.set(0,1,0).applyQuaternion(glCQ);glZ.multiplyScalar(.35).addScaledVector(glC,.65)}glZ.addScaledVector(glY,-glZ.dot(glY));if(glZ.lengthSq()<1e-6)glZ.set(0,0,1);glZ.normalize();
  glX.crossVectors(glY,glZ);glM.makeBasis(glX,glY,glZ);glQ.setFromRotationMatrix(glM);
  if(CFG.wr)glQ.premultiply(cfgQ.setFromAxisAngle(glY,CFG.wr*.01745*h.s));if(CFG.wf)glQ.premultiply(cfgQ.setFromAxisAngle(glX,CFG.wf*.01745));if(CFG.wx)glQ.premultiply(cfgQ.setFromAxisAngle(glZ,CFG.wx*.01745*h.s));   // ajustes do menu: giro / dobra / inclinação do pulso
@@ -906,6 +909,7 @@ const wl={d:9,nx:0,nz:1};
 function wallNear(x,z){const N=VRON?16:8,Wd=VRON?ROOM_R:3.4;let b=-9;for(let i=0;i<N;i++){const a=i*2*Math.PI/N,nx=Math.sin(a),nz=Math.cos(a),d=x*nx+z*nz;if(d>b){b=d;wl.nx=nx;wl.nz=nz}}wl.d=Wd-b}
 class Enemy{
  constructor(x,z){
+  this.hx=x;this.hz=z;   // ponto de onde ele saiu (volta pra cá no intervalo)
   const P=this.P={},L=this.parts=[];this.hipJ=[];this.hw=0;this.gp=0;this.wind=0;this.hpH=100;this.hpB=100;this.ko0();this.bal=1;this.s=1;this.gt=0;this.gu=0;this.gtu=0;this.t=0;this.nextAtk=2.5;this.atk=null;this.dirS=1;this.sT=2;this.vd=new THREE.Vector3();this.fe=null;this.gl=0;this.wr={L:0,R:0};this.rl={L:0,R:0};this.nog=0;this.dz=0;this.sg=0;this.mnt=false;this.kt=0;this.hn=0;
   const mk=(n,k,d,m,px,py,pz,me)=>{const[cg,cm]=selfCol(n);const p=new Part(n,k,d,m*1.6,x+px,py,z+pz,me,this,cg,cm);P[n]=p;L.push(p);return p};
   const E0=()=>new THREE.Object3D();
@@ -944,7 +948,7 @@ class Enemy{
   if(this.st=='kd'||n>=2){this.st='fin';return}
   if(this.hpB<=0){this.pain=1;this.stM=Math.min(this.stM,15)}   // barriga zerada: vigor fica péssimo
   this.kdN=n+1;this.kdT++;this.st='kd';this.dt2=5;{const g=(n==0?20:10)*this.rf();this.hpH=Math.min(100-this.injH,g);this.hpB=Math.min(100-this.injB,g)}this.upHp=n==0?40:30}
- restStart(){this.rest=true;this.atk=null;this.wind=0;if(this.bw)bloodWipe(this);if(this.st=='kd'||this.st=='cd'){this.st='fight';this.lift();this.bal=.85}
+ restStart(){this.rest=true;this.rw=false;this.atk=null;this.wind=0;if(this.bw)bloodWipe(this);if(this.st=='kd'||this.st=='cd'){this.st='fight';this.lift();this.bal=.85}
   this.regen(20);this.stam=this.stM}   // descanso: recupera um pouco
  nextRound(){this.rest=false;this.rd++;this.stM=Math.max(this.pain?5:20,this.stM-4/DIF.st)}
  koTick(dt){if(this.st=='fin')return;
@@ -1146,6 +1150,9 @@ class Enemy{
   this.sT-=dt;if(this.sT<0){this.dirS*=-1;this.sT=1.5+Math.random()*2}
   const ai=this.think(dt,tp,dist,nx,nz);let fw=cl((dist-ai.dd)*2.4,-.9,1.1)*ai.sp*(1+(DIF.ag-1)*.3);if(fw<0)fw*=.5;if(ai.fl&&!this.atk)fw=-ai.fl;if(this.atk){const q=qOf(this.atk),t=this.atk.t,by=this.atk.bd;if(t>=q.w*(by?1:.5)-.03&&t<q.w+q.s+q.h&&dist>(by?.7:.55))fw=by?1.9:2.5}const st=dist<1.9&&!this.atk?ai.st*this.dirS:0;
   this.vd.set(nx*fw+nz*st,0,nz*fw-nx*st);
+  if(this.rest&&alive){const hx=this.hx-pel.p.x,hz=this.hz-pel.p.z,hd=Math.hypot(hx,hz)||1e-3;this.rw=this.rw?hd>.1:hd>.3;   // só anda se estiver longe (histerese): chegando perto ele PARA, não fica deslizando devagar com os pés plantados
+   if(this.rw){const sp=cl(hd*1.6,.4,.7);this.vd.set(hx/hd*sp,0,hz/hd*sp)}else this.vd.set(0,0,0)}   // intervalo: volta andando pro ponto de onde saiu e fica parado de frente pra você, sem circular nem se debater
+  const lp=this.rest&&!this.rw&&alive&&!held&&(!this.gp||pel.p.y>.75);if(lp){this.gp=0;this.gu=0}   // parado no intervalo: as pernas ficam numa pose de pé fixa (a física deixava joelho/pé tortos)
   // sustentação (pernas carregam o peso; pelve só assiste)
   const hs=held?(hH||hT?.8:hL==3?.6:hL?.9:.98):1,Mt=this.mass,mu=pel.mass+P.abdomen.mass+ch.mass+P.head.mass;
   if(!this.gp)F(pel,0,Math.max(0,s*hs*pel.mass*(4.9+100*cl(.99-pel.p.y,-.1,.1)-14*pel.v.y)),0);
@@ -1162,20 +1169,42 @@ class Enemy{
    if(r2>ROOM_R+.02&&!q.held){const k=(ROOM_R-.3)/r2;tt.setIdentity();tt.setOrigin(setV(q.p.x*k,q.p.y,q.p.z*k));tq.setValue(q.q.x,q.q.y,q.q.z,q.q.w);tt.setRotation(tq);q.b.setWorldTransform(tt);q.b.getMotionState().setWorldTransform(tt)}}}}   // última barreira: se alguma parte passou da parede, volta pra dentro na hora   // parede dura do cômodo: nenhuma parte do corpo passa, mesmo caído
   const ax=this.vd.x-pel.v.x,az=this.vd.z-pel.v.z,fm=this.gp?0:Mt*s*hs*6*(hH||hT?.25:hL==3?.08:hL?.5:1);
   F(pel,fm*ax,0,fm*az);if(ROk>0){const vo=Math.max(0,pel.v.x*ROx+pel.v.z*ROz),fk=Math.min(10,ROk*30+vo*3)*Mt*s*hs;F(pel,-ROx*fk,0,-ROz*fk)}
-  const yo=this.yo||0;const sY=.26*(.35+.65*this.gl); // giro de guarda: ombro/pé esquerdos à frente; relaxa quando o jogador está longe
+  const yo=this.rest?0:(this.yo||0);const sY=this.rest?0:.26*(.35+.65*this.gl);   // intervalo: postura reta (sem giro de guarda)
+   // giro de guarda: ombro/pé esquerdos à frente; relaxa quando o jogador está longe
   if(!this.gp){this.orient(pel,2*s*hs,want+.3*sY+.2*yo);this.orient(P.abdomen,2*s*hs,want+.65*sY+.6*yo);this.orient(ch,2*s*hs,want+sY+yo)}
   {const hd=P.head,cz=kZc.set(0,0,1).applyQuaternion(ch.q),hy=Math.atan2(cz.x,cz.z),yy=hy+cl(wrap(want-hy),-.4,.4),pit=cl(Math.atan2(tp.y-.08-hd.p.y,dist),-.3,.25)-.09*this.gl,cp=Math.cos(pit);
    kZ2.set(Math.sin(yy)*cp,Math.sin(pit),Math.cos(yy)*cp);kXh.set(0,1,0).cross(kZ2).normalize();kYh.crossVectors(kZ2,kXh);kM.makeBasis(kXh,kYh,kZ2);kqH.setFromRotationMatrix(kM);if(!hd.held){const cu=kXh.set(0,1,0).applyQuaternion(ch.q).y,rc=this.hr>0;if(cu<.75)this.trk(hd,ch.q,12,1,rc?.4:.9);else this.trk(hd,kqH,rc?16:20,.95,rc?s:Math.max(s,.7))}}   // fora do recuo o pescoço é firme; tronco caindo: a cabeça segue o tronco
-  for(const n of['L','R']){const o=this.fe&&this.fe.find(q=>q.p===P['ft'+n]),k=(o&&o.st>=0?.25:1)*s*hs*(P['th'+n].held||P['sh'+n].held||P['ft'+n].held?.2:1);if(!this.gp){this.orient(P['th'+n],k,want);this.orient(P['sh'+n],k,want);this.orient(P['ft'+n],1.5*s,want)}}
+  for(const n of['L','R']){const o=this.fe&&this.fe.find(q=>q.p===P['ft'+n]),k=(o&&o.st>=0?.25:1)*s*hs*(P['th'+n].held||P['sh'+n].held||P['ft'+n].held?.2:1);if(!this.gp&&!lp){this.orient(P['th'+n],k,want);this.orient(P['sh'+n],k,want);this.orient(P['ft'+n],1.5*s,want)}}
   const ff=vA.set(0,0,1).applyQuaternion(ch.q);ff.y=0;ff.normalize();const xx=vB.set(1,0,0).applyQuaternion(ch.q);xx.y=0;xx.normalize();
   if(this.wind>0){const wf=Math.min(1,this.wind/.6)*s,hd=P.head,ab=P.abdomen;F(ch,ff.x*ch.mass*17*wf,-ch.mass*3*wf,ff.z*ch.mass*17*wf);F(ab,ff.x*ab.mass*12*wf,0,ff.z*ab.mass*12*wf);F(hd,ff.x*hd.mass*18*wf,-hd.mass*8*wf,ff.z*hd.mass*18*wf)} // sem ar: tronco dobra pra frente
   if(this.hc>0&&this.st=='fight'){const hf=Math.min(1,this.hc)*s,hd=P.head,ab=P.abdomen;F(ch,ff.x*ch.mass*15*hf,-ch.mass*4*hf,ff.z*ch.mass*15*hf);F(ab,ff.x*ab.mass*10*hf,0,ff.z*ab.mass*10*hf);F(hd,ff.x*hd.mass*16*hf,-hd.mass*10*hf,ff.z*hd.mass*16*hf)}   // soco na barriga: encurva (queixo desce) proporcional à força
   // pés (passos)
   if(!this.fe){this.fe=[-1,1].map(sd=>({s:sd,p:P['ft'+(sd<0?'L':'R')],a:new THREE.Vector3(),f:new THREE.Vector3(),t:new THREE.Vector3(),i:new THREE.Vector3(),g:new THREE.Vector3(),st:-1}));this.fe.forEach(o=>{o.a.copy(o.p.p);o.a.y=0})}
-  for(const o of this.fe){o.i.copy(pel.p).addScaledVector(xx,o.s*.18).addScaledVector(ff,o.s>0?-.09:.10).addScaledVector(this.vd,.25);o.i.y=0;if(down||this.gp||!alive||pel.p.y<.8){o.a.copy(o.i);o.st=-1}   // caído/levantando: âncora do pé = posição ideal sob o quadril (não a de antes da queda)
-   if(o.st<0){if(o.a.distanceTo(o.i)>.2&&this.fe.every(q=>q===o||q.st<0)){o.f.copy(o.a);o.t.copy(o.i);o.st=0}}
+  const rI=this.rest&&!this.rw&&alive;   // parado no intervalo: pés lado a lado na largura dos ombros e re-plantados a cada pequeno desvio (antes ficavam onde a luta deixou, até 20 cm fora, cruzados/virados)
+  for(const o of this.fe){o.i.copy(pel.p).addScaledVector(xx,o.s*(rI?.16:.18)).addScaledVector(ff,rI?0:o.s>0?-.09:.10).addScaledVector(this.vd,.25);o.i.y=0;if(down||this.gp||!alive||pel.p.y<.8){o.a.copy(o.i);o.st=-1}   // caído/levantando: âncora do pé = posição ideal sob o quadril (não a de antes da queda)
+   if(o.st<0){if(o.a.distanceTo(o.i)>(rI?.06:.2)&&this.fe.every(q=>q===o||q.st<0)){o.f.copy(o.a);o.t.copy(o.i);o.st=0}}
    let lift=0;if(o.st>=0){o.st+=dt/.22;const u=Math.min(o.st,1);o.a.lerpVectors(o.f,o.t,u);lift=Math.sin(Math.PI*u)*.13;if(o.st>=1){o.st=-1;stepSnd(o.p.p,.55)}}
-   if(!this.gp&&!(o.p.held||P['th'+(o.s<0?'L':'R')].held||P['sh'+(o.s<0?'L':'R')].held)){o.g.set(o.a.x,.03+lift,o.a.z);this.drive(o.p,o.g,6,14,300,s)}}
+   if(!this.gp&&!lp&&!(o.p.held||P['th'+(o.s<0?'L':'R')].held||P['sh'+(o.s<0?'L':'R')].held)){o.g.set(o.a.x,.03+lift,o.a.z);this.drive(o.p,o.g,6,14,300,s)}}
+  if(lp){   // idle do intervalo: pose calculada (joelhos levemente dobrados, pés levemente abertos, respiração, balanço de peso)
+   if(!this.lpOn){this.lpOn=1;if(!this.lpC)this.lpC=new THREE.Vector2();this.lpC.set(pel.p.x,pel.p.z);kC.set(0,0,1).applyQuaternion(pel.q);this.lpY=Math.atan2(kC.x,kC.z)}
+   this.lpY+=wrap(want-this.lpY)*Math.min(1,dt*1.2);   // gira devagar pra ficar de frente pra você
+   const yw=this.lpY,tt2=this.t,br=Math.sin(tt2*1.55),sw=.012*Math.sin(tt2*.4),sn=Math.sin(yw),cs2=Math.cos(yw);
+   lpQ.setFromAxisAngle(AYY,yw);lpI.copy(lpQ).invert();
+   lpP.set(this.lpC.x+cs2*sw,.99-.045-.004*br,this.lpC.y-sn*sw);this.pin(pel,lpP,lpQ,dt);
+   for(const n of['L','R']){const sd=n=='L'?-1:1,fy=yw+sd*.16,sf=Math.sin(fy),cf=Math.cos(fy);
+    lpH.set(sd*.1,-.06,0).applyQuaternion(lpQ).add(lpP);   // quadril
+    const lz=sd<0?.04:-.04,fcx=this.lpC.x+cs2*sd*.15+sn*lz,fcz=this.lpC.y-sn*sd*.15+cs2*lz;
+    lpA.set(fcx-sf*.05,.08,fcz-cf*.05);   // tornozelo
+    lpU.copy(lpA).sub(lpH);let dl=lpU.length();dl=Math.min(dl,.845);lpU.normalize();
+    const ca=cl((.44*.44+dl*dl-.41*.41)/(2*.44*dl),-1,1),sa=Math.sqrt(1-ca*ca);
+    lpD.set(sn,0,cs2);lpD.addScaledVector(lpU,-lpD.dot(lpU)).normalize();   // joelho dobra pra frente
+    lpK.copy(lpH).addScaledVector(lpU,.44*ca).addScaledVector(lpD,.44*sa);
+    lpX.copy(lpH).add(lpK).multiplyScalar(.5);lpD.copy(lpH).sub(lpK).normalize().applyQuaternion(lpI);lpS.setFromUnitVectors(AYY,lpD);lpF.copy(lpQ).multiply(lpS);this.pin(P['th'+n],lpX,lpF,dt);
+    lpX.copy(lpK).add(lpA).multiplyScalar(.5);lpD.copy(lpK).sub(lpA).normalize().applyQuaternion(lpI);lpS.setFromUnitVectors(AYY,lpD);lpF.copy(lpQ).multiply(lpS);this.pin(P['sh'+n],lpX,lpF,dt);
+    lpX.set(fcx,.03,fcz);lpF.setFromAxisAngle(AYY,fy);this.pin(P['ft'+n],lpX,lpF,dt)}
+   {const a=.55*Math.sin(tt2*1.55);F(ch,0,ch.mass*a,0);F(P.abdomen,0,P.abdomen.mass*a*.5,0);F(P.head,0,P.head.mass*a*.6,0)}   // respiração: peito sobe e desce de leve
+   {const fd=this.fid||(this.fid={s:1,u:1,w:3});fd.w-=dt;if(fd.u<1)fd.u+=dt/1.8;else if(fd.w<=0){fd.s=Math.random()<.5?-1:1;fd.u=0;fd.w=4+Math.random()*5}}   // de vez em quando mexe um braço
+   for(const o of this.fe){o.st=-1;o.a.copy(o.p.p);o.a.y=0}}else this.lpOn=0;
   // braços: só controle de orientação (as juntas já fixam as posições; molas de posição brigavam com elas e causavam o tremor)
   // a pose vem de IK: a luva vai para um alvo no referencial do peito e o cotovelo é resolvido a partir dele
   this.nextAtk-=dt;this.guardAI(dt,tp);
@@ -1203,6 +1232,7 @@ class Enemy{
    if(wH>.001)ikG.lerp(ikZb.set(sd*.07,.27,.27),wH);    // bloqueio alto: luvas juntas na frente do rosto
    if(wB>.001)ikG.lerp(ikZb.set(sd*.085,-.25,.28),wB);   // guarda da barriga: luvas descem pro abdômen
    ikG.y+=.011*Math.sin(bob+sd*1.6);ikG.z+=.008*Math.cos(bob*.8+sd);
+   if(lp){ikG.set(sd*.27,-.52,.07);const fd=this.fid;if(fd&&fd.s==sd&&fd.u<1){const b=Math.sin(Math.PI*fd.u),b2=b*b;ikG.x-=sd*.10*b2;ikG.y+=.20*b2;ikG.z+=.14*b2}ikG.y+=.007*Math.sin(this.t*1.55+sd*.4)}   // idle: braços soltos ao lado do corpo, respirando; às vezes um sobe e ajeita
    ikP.set(sd*.2,-1,.25*gl);
    if(wH>.001)ikP.lerp(ikPz.set(sd*.12,-1,.1),wH);
    if(wB>.001)ikP.lerp(ikPz.set(sd*.07,-1,-.1),wB);
@@ -1350,7 +1380,7 @@ function elbowOf(h,eye,fw,dt){
  ebC.set(0,-.35,0).addScaledVector(ebL,.3+.45*smS(elD.y,.2,.7)).addScaledVector(ebF,1);   // mão acima do ombro (atrás da cabeça): cotovelo abre pra fora além de ir pra frente
                            // pra frente
  ebP.lerp(ebC,wIn).normalize();
- if(h.g){h.g.getWorldQuaternion(glCQ);{const a=CFG.wp*.01745;ebC.set(0,Math.sin(a),-Math.cos(a))}ebC.applyQuaternion(glCQ);   // direção do pulso (pra onde a mão aponta)
+ if(wristDir(h,ebC)){   // direção do pulso (pra onde a mão aponta)
   ebC.addScaledVector(elD,-ebC.dot(elD));const m=ebC.length();   // parte do pulso fora do eixo ombro→mão
   if(m>1e-4){ebC.multiplyScalar(-1/m);ebP.lerp(ebC,smS(m,.15,.5));if(ebP.lengthSq()<1e-6)ebP.copy(ebC);ebP.normalize()}}   // cotovelo fica ATRÁS do pulso: mão pro inimigo = cotovelo pra trás; mão pro peito = cotovelo pro inimigo. Reto no eixo do braço (soco esticado): mantém o pole relaxado
  const al=Math.abs(ebP.dot(elD));if(al>.85){ebC.copy(ebL).addScaledVector(ebF,.3);ebP.lerp(ebC.normalize(),smS(al,.85,.98)).normalize()}   // braço quase paralelo ao pole (luva reta abaixo/acima do ombro): vira o cotovelo pra fora
@@ -1634,7 +1664,7 @@ function bloodInit(en){if(en.bw)return en.bw;
 function bloodClear(en){const W=en.bw;if(!W)return;W.wounds.length=0;W.F.clear();W.B.clear();bruiseClear(W);faceFxReset(W);W.wp=null;en.frag=0;floorClear()}
 
 // ---- feridas do rosto ----
-function bxOpenWound(en,W,kind,g,pw,lvl){const F=W.F,w={k:kind,age:0,tau:16+34*lvl,q0:Math.min(1,.4+.55*lvl+.25*pw),q:0,fl:kind=='nose'?.14:kind=='mouth'?.12:.1,sp:1.5+Math.random(),S:[],bd:[],st:null};w.q=w.q0;w.fl0=w.fl;
+function bxOpenWound(en,W,kind,g,pw,lvl,el){const F=W.F,w={k:kind,age:0,tau:16+34*lvl,q0:Math.min(1,.4+.55*lvl+.25*pw),q:0,fl:kind=='nose'?.14:kind=='mouth'?.12:.1,sp:1.5+Math.random(),S:[],bd:[],st:null,el:!!el};w.q=w.q0;w.fl0=w.fl;
  if(kind=='nose'){w.S.push(bxSrc(-.0095,-.0545,.1),bxSrc(.0095,-.0545,.1));w.BS=[bxSrc(-.0115,-.0435,.0985),bxSrc(.0115,-.0435,.0985)]}   // bolinhas nas narinas; fios nascem no filtro logo abaixo
  else if(kind=='mouth'){const s=Math.random()<.5?-1:1;w.S.push(bxSrc(s*.013,-.088,.085));   // lábio inferior partido num dos lados
   w.st=F.addBlot({p:bxSrc(0,-.0765,.0975),s:.001,ax:2.6,ay:.85,rot:0,vr:3,t:W.t,gr:0,pin:true,sh:.9})}       // sangue nos lábios
@@ -1642,9 +1672,9 @@ function bxOpenWound(en,W,kind,g,pw,lvl){const F=W.F,w={k:kind,age:0,tau:16+34*l
   faceSnap(g.x,Math.min(g.y,.062),g.z,bxU);faceSurf(bxU,bxP1,bxN1);const P0=bxP1.clone(),N0=bxN1.clone();
   bxT.set(-N0.z,0,N0.x);if(bxT.lengthSq()<.04)bxT.set(1,0,0);bxT.normalize();bxC.crossVectors(N0,bxT);const an=(Math.random()-.5)*.9;
   bxT.multiplyScalar(Math.cos(an)).addScaledVector(bxC,Math.sin(an));
-  const Lc=(.008+.012*Math.min(1,pw))*(1+.2*Math.random()),pts=[];
+  const Lc=(.008+.012*Math.min(1,pw))*(1+.2*Math.random())*(el?1.7:1),pts=[];
   for(const f of[-.5,0,.5]){faceSnap(P0.x+bxT.x*f*Lc,P0.y+bxT.y*f*Lc,P0.z+bxT.z*f*Lc,bxU);faceSurf(bxU,bxP2,bxN2);pts.push(bxPt(bxP2,bxN2,W.t))}
-  F.addRun({pts,done:true,end:'slit',w0:.0014,sh:.55,t0:W.t,keep:true,q:1});
+  F.addRun({pts,done:true,end:'slit',w0:el?.0017:.0014,sh:.55,t0:W.t,keep:true,q:1});
   pts.sort((a,b)=>(b.x*bxG.x+b.y*bxG.y+b.z*bxG.z)-(a.x*bxG.x+a.y*bxG.y+a.z*bxG.z));w.S.push(pts[0])}   // sai pelo ponto mais baixo da fenda
  for(const p of(w.BS||w.S)){const b=F.addBlot({p,s:.0005,ax:1,ay:1,rot:Math.random()*6.28,vr:0,t:W.t,gr:.7,pin:true,sh:1});if(b)w.bd.push(b)}
  W.wounds.push(w);for(let i=0;i<w.S.length;i++)bxSpawn(en,W,w,true,i);return w}   // brota: a bolinha cresce ~0,5 s e o 1º fio sai de cada origem
@@ -1780,7 +1810,7 @@ function bruiseTick(W,dt){const H=W.H,P=H.pos.array,C=H.col.array,t=W.t;P.fill(0
 function bloodWipe(en){const W=en.bw;if(!W)return;if(W.wounds.length>0||W.F.bl.length>4||W.B.bl.length>4)en.frag=Math.min(2.2,(en.frag||0)+.7);
  W.wp={t:0,n:0};for(const e of W.E.e)e.a*=.88;   // inchaço baixa só um pouco; nariz quebrado fica
  const tw=(x,y)=>{const bd=cl(Math.floor((.075-y)/.045),0,4),u=cl((x+.09)/.18,0,1);return bd*.5+(bd&1?1-u:u)*.5};
- for(const w of W.wounds){w.q0=0;w.fl=0;w.age=w.tau*3}
+ for(const w of W.wounds){w.q0=0;w.fl=0;w.age=w.tau*3;if(w.el){for(const b of w.bd)b.pin=false;w.bd=[]}}   // corte de cotovelada: o sangue sai com o pano, a fenda fica marcada
  for(const L of[W.F,W.B]){const f=L.kind=='f';
   for(const b of L.bl){if(b.res)continue;b.wt=f?tw(b.p.x,b.p.y):1.2+Math.random()*1.3;b.wd=null}
   for(const r of L.runs)if(r)r.wt=f?tw(r.pts[0].x,r.pts[0].y):1.2+Math.random()*1.3}}
@@ -1862,6 +1892,38 @@ function impactFx(en,h,hz,pw,crit,p){
  const n=Math.round((20+150*pw)*lvl*(crit?1.4:1));    // névoa de gotículas finas saindo do ponto do golpe
  for(let i=0;i<n;i++){const s0=(.6+3.2*pw)*(.35+.9*Math.random()),vx=imDir.x*.25+rnd(),vy=imDir.y*.25+rnd()+.2,vz=imDir.z*.25+rnd(),l=Math.hypot(vx,vy,vz)||1,r=.0010+.0030*Math.pow(Math.random(),1.6)*(.6+pw);
   spawnDrop(hz.x-imDir.x*.01,hz.y-imDir.y*.01,hz.z-imDir.z*.01,vx/l*s0,vy/l*s0,vz/l*s0,r,0,1.6+1.6*Math.random(),BLOODC[(Math.random()*3)|0])}}
+
+// ---- cotovelada: pode abrir um corte na pele onde pega (só quando bate forte: a chance, o tamanho do fluxo e os respingos crescem com a força) ----
+// o corte é uma fenda fina que FICA marcada; o sangue brota/escorre e o pano do intervalo limpa (bloodWipe), sobrando só a marca
+const elcA=new THREE.Vector3(),elcB=new THREE.Vector3(),elcC=new THREE.Vector3();
+function elSpurt(x,y,z,vx0,vy0,vz0,n,pw){for(let i=0;i<n;i++){const s0=(.5+2.2*pw)*(.3+.9*Math.random()),vx=vx0*.35+rnd(),vy=vy0*.25+rnd()+.15,vz=vz0*.35+rnd(),l=Math.hypot(vx,vy,vz)||1;
+ spawnDrop(x,y,z,vx/l*s0,vy/l*s0,vz/l*s0,.0009+.0021*Math.pow(Math.random(),1.4),0,1.4+1.4*Math.random(),BLOODC[(Math.random()*3)|0])}}
+function elbowCut(en,p,hz,dir,ve,force){
+ const pw=punchPower(ve),head=p.name=='head',torso=p.name=='chest'||p.name=='abdomen'||p.name=='pelvis';if(!head&&!torso)return false;
+ if(!force&&Math.random()>cl((pw-.1)/.9,0,.95))return false;   // cotovelada fraca não corta
+ const it=Math.min(1,pw/1.5),W=bloodInit(en),ns=Math.round(2+9*it);
+ if(head){const hd=en.P.head;bxQ.copy(hd.q).invert();bxG.set(0,-1,0).applyQuaternion(bxQ);
+  const g=bxC.copy(hz).sub(hd.p).applyQuaternion(bxQ);faceSnap(g.x,g.y,g.z,bxU);faceSurf(bxU,bxP1,bxN1);const P=bxP1.clone();if(P.z<=.02)return false;
+  const els=W.wounds.filter(w=>w.el);let w=null;
+  if(els.length>=6){let bd=1e9;for(const q of els){const d=Math.hypot(q.S[0].x-P.x,q.S[0].y-P.y,q.S[0].z-P.z);if(d<bd){bd=d;w=q}}   // muitos cortes: reabre o mais perto
+   w.q0=Math.min(1,w.q0+.25+.35*it);w.age=Math.min(w.age,w.tau*.4);w.fl=Math.max(w.fl,.05+.09*it)}
+  else{w=bxOpenWound(en,W,'cut',P,pw,.3+.5*it,true);w.q0=.22+.7*it;w.q=w.q0;w.fl0=w.fl=.04+.1*it;w.tau=10+30*it}   // fluxo proporcional à força
+  bxSpatter(en,W,P,pw,.25+.5*it,false);
+  const q=w.S[0];bxW.set(q.x+q.nx*.003,q.y+q.ny*.003,q.z+q.nz*.003).applyQuaternion(hd.q).add(hd.p);elSpurt(bxW.x,bxW.y,bxW.z,dir.x,dir.y,dir.z,ns,pw);
+  return true}
+ const L=W.B;en.updBones();const near=bxNear(en,hz.x,hz.y,hz.z);if(!near)return false;
+ if(L.runs.filter(r=>r&&r.keep).length>=8)return false;
+ const ch=[near[0]];let cur=near[0];   // fenda de 3 vértices vizinhos, em linha reta
+ for(let k=0;k<2;k++){en.bodyPos(cur,elcA);let best=-1,bs=-9;
+  for(const m of en.adjB[cur]){if(!en.tsk[m]||ch.includes(m))continue;en.bodyPos(m,elcB);elcB.sub(elcA).normalize();const sc=k==0?Math.random():elcB.dot(elcC);if(sc>bs){bs=sc;best=m}}
+  if(best<0)break;en.bodyPos(best,elcB);elcC.copy(elcB).sub(elcA).normalize();cur=best;ch.push(best)}
+ if(ch.length<2)return false;
+ L.addRun({pts:ch.map(v=>({v,t:W.t})),done:true,end:'slit',w0:.0017,sh:.55,t0:W.t,keep:true,q:1});
+ let lo=ch[0],ly=1e9;for(const v of ch){en.bodyPos(v,elcA);if(elcA.y<ly){ly=elcA.y;lo=v}}
+ L.addBlot({p:{v:lo,t:W.t},s:.0016+.0024*it,ax:1.3,ay:1,rot:Math.random()*6.28,vr:0,t:W.t,gr:.6,sh:1});   // sangue brota na fenda
+ for(let i=0;i<Math.round(2+9*it);i++)L.addBlot({p:{v:near[(Math.random()*near.length)|0],t:W.t},ox:rnd()*.008,oy:rnd()*.008,s:.0012+.0032*Math.pow(Math.random(),1.8),ax:1,ay:.8+.5*Math.random(),rot:Math.random()*6.28,vr:Math.random()<.65?0:1,t:W.t,gr:.1,sh:.85+Math.random()*.3});
+ for(let j=0;j<(it>.55?2:1);j++)L.addRun({pts:[{v:lo,t:W.t}],ch:'b',w0:.0016+.0022*it,vol:.03+.15*it*(.5+Math.random()),q:.3+.6*it,cd:.3+Math.random()*.6,t0:W.t});   // escorre
+ elSpurt(hz.x,hz.y,hz.z,dir.x,dir.y,dir.z,Math.round(ns*.6),pw);return true}
 
 // marcadores dos pontos críticos (botão "Alvos" ou clique do analógico no VR)
 const tgM=[[0xff5a3c,.016],[0xff8a3c,.014],[0xff8a3c,.014],[0xffc83c,.025]].map(([c,r])=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,12,10),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.5,depthTest:false}));m.renderOrder=97;m.visible=false;scene.add(m);return m});
@@ -2187,7 +2249,7 @@ function startTrain(k){hands.forEach(h=>h.rel());MODE='train';TR.k=k;reset();RD.
 // ---------- Painel de testes (botão "Testes" no menu e na barra do topo): áudios + efeitos do rosto ----------
 const TST={fz:true};
 
-const FXT=['Olho roxo A','Olho roxo B','Os dois olhos','Nariz quebrado','Hematomas (rápido)','Sangue leve','Sangue médio','Sangue forte','Limpar (pano do intervalo)','Forçar intervalo','Resetar rosto'];
+const FXT=['Olho roxo A','Olho roxo B','Os dois olhos','Nariz quebrado','Hematomas (rápido)','Sangue leve','Sangue médio','Sangue forte','Limpar (pano do intervalo)','Forçar intervalo','Resetar rosto','Cotovelada: corte leve','Cotovelada: corte médio','Cotovelada: corte forte','Cotovelada: corte no tronco','Cotovelada: 8 golpes sorteados'];
 function tFx(i){initAudio();if(MODE!='fight')startFight();const hd=enemy.P.head,W=bloodInit(enemy),E=W.E,H=W.H;bxQ.copy(hd.q).invert();bxG.set(0,-1,0).applyQuaternion(bxQ);
  const hit=(x,y,z,pw,n)=>{const hz=new THREE.Vector3(x,y,z).applyQuaternion(hd.q).add(hd.p),h={v:new THREE.Vector3(0,0,-8)};for(let k=0;k<n;k++)impactFx(enemy,h,hz,pw,false,hd)},
   eye=k=>{const e=E.e[k];e.a=40;e.v=1};
@@ -2197,7 +2259,12 @@ function tFx(i){initAudio();if(MODE!='fight')startFight();const hd=enemy.P.head,
  else if(i<=7){const hp=[65,40,22][i-5];enemy.mnH=Math.min(enemy.mnH,hp);enemy.hpH=Math.min(enemy.hpH,hp);hit(0,-.04,.1,2.5,2);hit(0,-.078,.097,2.5,2);hit(-.05,-.06,.07,2.5,2)}
  else if(i==8)bloodWipe(enemy);
  else if(i==9){if(RD.ph=='fight')startRest()}
- else if(i==10){enemy.clearBlood();enemy.mnH=100;enemy.hpH=Math.min(100-enemy.injH,100)}}
+ else if(i==10){enemy.clearBlood();enemy.mnH=100;enemy.hpH=Math.min(100-enemy.injH,100)}
+ else if(i>=11&&i<=13){const ve=[3.8,6.8,10.5][i-11],sp=[[-.045,.0,.085],[.048,.022,.08],[.0,.05,.09],[-.03,-.03,.09]],c=sp[(Math.random()*sp.length)|0];   // leve / médio / forte, em pontos variados do rosto
+  const hz=new THREE.Vector3(c[0],c[1],c[2]).applyQuaternion(hd.q).add(hd.p);elbowCut(enemy,hd,hz,new THREE.Vector3(.3,0,-1).normalize(),ve,true)}
+ else if(i==14){const ch=enemy.P.chest,fwd=new THREE.Vector3(0,0,1).applyQuaternion(hd.q);fwd.y=0;fwd.normalize();
+  const hz=new THREE.Vector3(hd.p.x+fwd.x*.14+(Math.random()-.5)*.14,hd.p.y-.2-Math.random()*.2,hd.p.z+fwd.z*.14);elbowCut(enemy,ch,hz,new THREE.Vector3(0,0,-1),8.5,true)}
+ else if(i==15){for(let k=0;k<8;k++){const ve=2+9*Math.random(),c=[(Math.random()-.5)*.1,(Math.random()-.4)*.1,.08+.01*Math.random()],hz=new THREE.Vector3(c[0],c[1],c[2]).applyQuaternion(hd.q).add(hd.p);elbowCut(enemy,hd,hz,new THREE.Vector3(.3,0,-1).normalize(),ve)}}}
 const tp=document.createElement('div');tp.id='tp';tp.style.cssText='display:none;position:fixed;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;z-index:30;background:#000d;padding:8px;box-sizing:border-box;border-top:2px solid #39ff6a;text-align:center';document.body.appendChild(tp);
 const bs='style="min-width:0;flex:none;padding:7px 10px;font-size:12px"';
 function drawTests(){tp.innerHTML='<div class="row" style="margin-bottom:4px"><b style="align-self:center">🧪 TESTES</b><button class="mb" '+bs+' data-z="fz">Inimigo parado: '+(TST.fz?'SIM':'NÃO')+'</button><button class="mb" '+bs+' data-z="x">Fechar ✕</button></div>'
@@ -2243,7 +2310,7 @@ R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
   if(h.gr&&!h.j)h.grab();else if(!h.gr&&h.j)h.rel();
   h.place(dt);orientGlove(h,eye,fw,dt);(MODELO_COTOVELO=='antigo'?elbowOfAntigo:elbowOf)(h,eye,fw,dt)}
  for(const h of hands)whooshChk(h);armBar();tt.setIdentity();tt.setOrigin(setV(eye.x,Math.max(eye.y-.45,.4),eye.z));pbody.getMotionState().setWorldTransform(tt);
- if(MODE=='fight')enemy.update(dt,RD.ph=='rest'?ECORNER:eye);
+ if(MODE=='fight')enemy.update(dt,eye);
  // golpes do jogador: detectados ANTES do passo da física, com a pose do rival do quadro anterior. Depois do passo a luva já tinha empurrado a cabeça (colisão), e o golpe forte errava o alvo, caía no braço ou marcava o ponto crítico errado
  const now=performance.now()/1000;
  for(const h of hands){if(h.j||RD.ph!='fight')continue;const spd=h.v.length();if(spd<HMIN)continue;   // HMIN: captura até toques bem fracos (antes só acima de 2.2 m/s)
@@ -2273,7 +2340,8 @@ R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
   if(!p)continue;h.ecd.set(p,now+.4);h.lock=now+.3;
   const ve=Math.min(h.es*2.3,12),en=p.owner,alive=en.alive,zc=hitZone(p,elT,h.ev),head=p.name=='head',kk=head?'mnH':'mnB';
   en[kk]=Math.min(en[kk],head?60-30*Math.min(1,punchPower(ve)):76);
-  const dmg=en.hit(p,h.ev,ve,1.35,alive?zc:null);strike(h,p,ve,dmg,alive?zc:null,alive,zc)}
+  const dmg=en.hit(p,h.ev,ve,1.35,alive?zc:null);strike(h,p,ve,dmg,alive?zc:null,alive,zc);
+  if(h.es>0)elbowCut(en,p,zc,vA.copy(h.ev).normalize(),ve)}   // corte na pele (só se bater forte)
  W.stepSimulation(dt,10,1/120);
  for(const p of GR)p.sync();
  if(MODE=='fight')enemy.applyPins();
