@@ -1316,10 +1316,11 @@ function limbSeg(m,a,b,r){m.position.copy(a).add(b).multiplyScalar(.5);m.scale.s
 let EL_TIP=.15,EL_R=.16,EL_V=.9;const elM2=new THREE.Vector3(),cfgQ=new THREE.Quaternion();
 // ===== AJUSTES DO BRAÇO / COTOVELO / PULSO (menu ⚙ Ajustes; salvos no aparelho). Depois de testar, mande os números pro Claude fixar =====
 // [chave, nome, padrão, passo, mín, máx]
-const CFGD=[['tip','Cotovelo: ponta (cm)',15,1,0,40],['er','Cotovelo: raio de acerto (cm)',16,1,4,40],['ev','Cotovelo: veloc. mín. (m/s)',.9,.1,0,4],
- ['eo','Cotovelo: p/ fora (cm)',0,1,-30,30],['ef','Cotovelo: p/ frente (cm)',0,1,-30,30],['eh','Cotovelo: altura (cm)',0,1,-30,30],
+const CFGD=[['tip','Cotovelo: ponta (cm)',6,1,0,40],['er','Cotovelo: raio de acerto (cm)',16,1,4,40],['ev','Cotovelo: veloc. mín. (m/s)',.9,.1,0,4],
+ ['eo','Cotovelo: p/ fora (cm)',0,1,-30,30],['ef','Cotovelo: p/ frente (cm)',0,1,-30,30],['eh','Cotovelo: altura (cm)',-7,1,-30,30],
  ['ua','Braço (cm)',30,1,20,45],['fa','Antebraço (cm)',27,1,20,45],['sw','Ombro: largura (cm)',19,1,8,30],['sh','Ombro: descida (cm)',12,1,-10,30],
- ['sb','Ombro: recuo (cm)',10,1,-10,30],['wr','Pulso: giro (°)',0,5,-90,90],['wf','Pulso: dobra (°)',0,5,-60,60],['wx','Pulso: inclina p/ lado (°)',0,5,-60,60]];
+ ['sb','Ombro: recuo (cm)',10,1,-10,30],['wr','Pulso: giro (°)',10,5,-90,90],['wf','Pulso: dobra (°)',0,5,-60,60],['wx','Pulso: inclina p/ lado (°)',0,5,-60,60],
+ ['wp','Pulso: eixo do antebraço (°)',0,5,-60,60],['fx','Antebraço: extra ao esticar (cm)',5,1,0,15]];
 const CFG={};CFGD.forEach(d=>CFG[d[0]]=d[2]);let cfgPg=0,cfgBig=0;
 try{const j=JSON.parse(localStorage.getItem('mmavr2cfg')||'null');if(j)CFGD.forEach(d=>{if(typeof j[d[0]]=='number'&&isFinite(j[d[0]]))CFG[d[0]]=cl(j[d[0]],d[4],d[5])})}catch(e){}
 function cfgApply(){EL_TIP=CFG.tip/100;EL_R=CFG.er/100;EL_V=CFG.ev}
@@ -1337,17 +1338,21 @@ function elTip(h,o){return o.copy(h.el).sub(h.pos).normalize().multiplyScalar(EL
 function elbowOf(h,eye,fw,dt){
  dt=Math.max(dt,.001);if(!(h.el.x===h.el.x&&h.el.y===h.el.y&&h.el.z===h.el.z))h.eok=0;
  shoulderOf(h,eye,fw,dt,elS);   // elS = ombro, ebR = pivô do pescoço, ebF/ebL = eixos do tronco
- elD.copy(h.pos).sub(elS);let d=elD.length()||1e-4;elD.multiplyScalar(1/d);const UA=CFG.ua/100,FA=CFG.fa/100,RM=UA+FA-.01;if(d>RM)elS.addScaledVector(elD,d-RM);d=Math.min(Math.max(d,.1),RM);   // mão além do alcance do braço: o ombro vai junto (o braço não estica e o cotovelo acompanha)
+ elD.copy(h.pos).sub(elS);let d=elD.length()||1e-4;elD.multiplyScalar(1/d);const UA=CFG.ua/100,FA=CFG.fa/100+CFG.fx/100*smS(d,UA+CFG.fa/100-.18,UA+CFG.fa/100-.02),RM=UA+FA-.01;   // braço esticado: antebraço efetivo mais longo (cotovelo não fica colado no pulso)
+ if(d>RM)elS.addScaledVector(elD,d-RM);d=Math.min(Math.max(d,.1),RM);   // mão além do alcance do braço: o ombro vai junto (o braço não estica e o cotovelo acompanha)
  const ca=cl((UA*UA+d*d-FA*FA)/(2*UA*d),-1,1),sa=Math.sqrt(1-ca*ca);
  // onde fica o cotovelo no círculo de soluções do IK (o "pole"): lógica de braço de verdade
  //  • relaxado/guarda: cotovelo pra baixo, um pouco pra fora e pra frente
  //  • luva encostada no corpo (peito, ombro oposto, barriga) ou atrás da cabeça: o braço não consegue ir pra trás, o cotovelo aponta pra FRENTE (pro inimigo), meio pra fora
  ebA.copy(h.pos).sub(ebR);const hc=ebA.dot(ebF),hl=ebA.dot(ebL),rho=Math.hypot(hc,ebA.dot(ebB.set(-ebF.z,0,ebF.x)));   // distância horizontal da luva ao eixo do tronco
- const wIn=smS(rho,.27,.17);
+ const wIn=h.g?0:smS(rho,.27,.17);   // com controle (VR) quem decide é a direção do pulso, abaixo; a regra 'luva perto do corpo = cotovelo pra frente' só vale sem controle
  ebP.set(0,0,0).addScaledVector(ebL,.4).addScaledVector(ebF,.25);ebP.y=-1;               // relaxado
  ebC.set(0,-.35,0).addScaledVector(ebL,.3+.45*smS(elD.y,.2,.7)).addScaledVector(ebF,1);   // mão acima do ombro (atrás da cabeça): cotovelo abre pra fora além de ir pra frente
                            // pra frente
  ebP.lerp(ebC,wIn).normalize();
+ if(h.g){h.g.getWorldQuaternion(glCQ);{const a=CFG.wp*.01745;ebC.set(0,Math.sin(a),-Math.cos(a))}ebC.applyQuaternion(glCQ);   // direção do pulso (pra onde a mão aponta)
+  ebC.addScaledVector(elD,-ebC.dot(elD));const m=ebC.length();   // parte do pulso fora do eixo ombro→mão
+  if(m>1e-4){ebC.multiplyScalar(-1/m);ebP.lerp(ebC,smS(m,.15,.5));if(ebP.lengthSq()<1e-6)ebP.copy(ebC);ebP.normalize()}}   // cotovelo fica ATRÁS do pulso: mão pro inimigo = cotovelo pra trás; mão pro peito = cotovelo pro inimigo. Reto no eixo do braço (soco esticado): mantém o pole relaxado
  const al=Math.abs(ebP.dot(elD));if(al>.85){ebC.copy(ebL).addScaledVector(ebF,.3);ebP.lerp(ebC.normalize(),smS(al,.85,.98)).normalize()}   // braço quase paralelo ao pole (luva reta abaixo/acima do ombro): vira o cotovelo pra fora
  if(!h.pl)h.pl=new THREE.Vector3().copy(ebP);h.pl.lerp(ebP,1-Math.exp(-dt*14)).normalize();   // pole suave: sem pulo quando a luva atravessa o peito
  elP.copy(h.pl).addScaledVector(elD,-h.pl.dot(elD));if(elP.lengthSq()<1e-6)elP.copy(ebL);elP.normalize();
