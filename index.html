@@ -5154,7 +5154,7 @@ R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
  if(rv>.05){const k=rv<.6?1:1-Math.exp(-dt/.12);RUN.hx+=(fw.x-RUN.hx)*k;RUN.hz+=(fw.z-RUN.hz)*k;const hl=Math.hypot(RUN.hx,RUN.hz)||1,hx=RUN.hx/hl,hz=RUN.hz/hl,n=Math.ceil(rv*dt/.12),sd=rv*dt/n;
   for(let i=0;i<n;i++){rig.position.x+=hx*sd;rig.position.z+=hz*sd;if(MODE=='car'&&CITY.on)cityWalkFix(rig.position)}}
  else{RUN.hx=fw.x;RUN.hz=fw.z}
- if(DRV.on||(MODE=='car'&&typeof CD!='undefined'&&CD.built&&CD.st=='pad'&&Math.hypot(eye.x-CD_SPOT.x,eye.z-CD_SPOT.z)<1.3))mx=mz=0;rig.position.addScaledVector(fw,-mz*1.8*dt);rig.position.x+=-fw.z*mx*1.8*dt;rig.position.z+=fw.x*mx*1.8*dt;
+ if(DRV.on||(MODE=='car'&&typeof CD!='undefined'&&CD.built&&CD.st=='pad'))mx=mz=0;rig.position.addScaledVector(fw,-mz*1.8*dt);rig.position.x+=-fw.z*mx*1.8*dt;rig.position.z+=fw.x*mx*1.8*dt;
  walkTick(dt,mx,mz,vr);{const rl=Math.hypot(rig.position.x,rig.position.z),RLM=MODE=='car'?FARM_R:2.8;if(MODE=='car'&&CITY.on){if(!DRV.on)cityWalkFix(rig.position)}else if(rl>RLM){rig.position.x*=RLM/rl;rig.position.z*=RLM/rl}}
  rig.updateMatrixWorld(true);cam.getWorldPosition(eye);
  // mãos
