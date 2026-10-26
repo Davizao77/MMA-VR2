@@ -3311,6 +3311,10 @@ function carAct(a){CARMSG='';
  else if(a=='carimp')carIn.click();
  }
 function startCareer(){if(!CAR)return;PROP_VOLTA=false;buildFarm();buildNpcs();buildTreino();celEntrar();carroMostrar();hands.forEach(h=>h.rel());MODE='car';reset();RD.ph='car';RD.fl=0;hidePads();setEnv('farm');enemyVis(false);trainG.visible=false;menuP.visible=false;spawn();$('msg').textContent='';setBody();cityStart();if(CAR.pos){rig.position.set(CAR.pos.x,CAR.pos.y,CAR.pos.z);if(!VRON&&!R.xr.isPresenting)yaw=CAR.pos.ry}}
+function espChip(){let e=document.getElementById('espchip');const w=(!VRON&&CAR&&MODE=='car'&&CAR.espera>Date.now())?CAR.espera-Date.now():0;
+ if(!w){if(e&&e.style.display!='none')e.style.display='none';return}
+ if(!e){e=document.createElement('div');e.id='espchip';e.style.cssText='position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);padding:6px 12px;border-radius:14px;background:#000c;color:#ffd24a;font:700 13px sans-serif;z-index:26;pointer-events:none;white-space:nowrap';document.body.appendChild(e)}
+ const sc=Math.ceil(w/1000),t='⏳ Descanso: '+String(Math.floor(sc/60)).padStart(2,'0')+':'+String(sc%60).padStart(2,'0');if(e.textContent!=t)e.textContent=t;e.style.display='block'}
 let posT=0;function carPosTick(dt,force){if(!CAR||MODE!='car'||DRV.on)return;posT+=dt;if(!force&&posT<3)return;posT=0;CAR.pos={x:Math.round(rig.position.x*100)/100,y:Math.round(rig.position.y*100)/100,z:Math.round(rig.position.z*100)/100,ry:Math.round(yaw*100)/100};carSalvar()}
 addEventListener('pagehide',()=>carPosTick(0,true));
 function carModel(){const vr=R.xr.isPresenting,m=[],L=[];
@@ -5150,7 +5154,7 @@ R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
  else{rig.rotation.y=yaw;cam.rotation.set(pitch+PL.sh*Math.sin(performance.now()*.09)*.05,PL.sh*Math.cos(performance.now()*.11)*.04,0);eyeH+=((crouch?.8:1.65)-eyeH)*Math.min(1,dt*6);cam.position.y=eyeH}
  drvPre(dt);rig.updateMatrixWorld(true);if(DI.f)diTick(dt);
  const eye=cam.getWorldPosition(new THREE.Vector3()),fw=cam.getWorldDirection(new THREE.Vector3());fw.y=0;fw.normalize();
- let rv=0;if(vr&&MODE=='car'&&!DRV.on)rv=runTick(dt);else if(RUN.ok)runReset();
+ let rv=0;if(vr&&MODE=='car'&&!DRV.on&&!(CD.built&&CD.st=='pad'))rv=runTick(dt);else if(RUN.ok)runReset();
  if(rv>.05){const k=rv<.6?1:1-Math.exp(-dt/.12);RUN.hx+=(fw.x-RUN.hx)*k;RUN.hz+=(fw.z-RUN.hz)*k;const hl=Math.hypot(RUN.hx,RUN.hz)||1,hx=RUN.hx/hl,hz=RUN.hz/hl,n=Math.ceil(rv*dt/.12),sd=rv*dt/n;
   for(let i=0;i<n;i++){rig.position.x+=hx*sd;rig.position.z+=hz*sd;if(MODE=='car'&&CITY.on)cityWalkFix(rig.position)}}
  else{RUN.hx=fw.x;RUN.hz=fw.z}
@@ -5207,7 +5211,7 @@ R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
  for(const p of GR){if(!(Math.abs(p.p.x)<8&&Math.abs(p.p.z)<8&&p.p.y>-1&&p.p.y<5)){hands.forEach(h=>h.rel());if(p.owner){dbg('CORPO FORA: '+p.name+' '+p.p.x.toFixed(1)+','+p.p.y.toFixed(1)+','+p.p.z.toFixed(1));enemy.respawn()}else{dbg('BOLA FORA');ball.reset()}break}
   if(p.owner){const l=p.b.getAngularVelocity(),a=Math.hypot(l.x(),l.y(),l.z());if(a>16)p.b.setAngularVelocity(setV(l.x()*16/a,l.y()*16/a,l.z()*16/a));
    const o=p.owner,nm=p.name,free=o.st=='fight'&&o.bal>=.5&&o.nog<=0&&!(o.kt>0)&&!o.hn,cap=free?(/^(ua|fa|h[LR])/.test(nm)?10:/^(pelvis|abdomen|chest|head)$/.test(nm)?2.2/*ANTES: 2.8*/:/^ft/.test(nm)?5:3.5):10,sv=p.v.length();if(sv>cap)p.b.setLinearVelocity(setV(p.v.x*cap/sv,p.v.y*cap/sv,p.v.z*cap/sv))}}   // em pé e equilibrado: o corpo não passa de ~3 m/s por empurrão/soco comum
- if(MODE=='train')trainTick(dt,now);if(MODE=='car'||SP.ph){farmTick(dt);cdTick(dt,now);fvTick(dt);npcTick(dt);celularTick(dt,now);carPosTick(dt);spTick(dt,now);drvTick(dt,now);cityTick(dt,now)}carClockTick(dt);propTick(dt);arenaTick(dt);musTick();if(MODE=='menu')menuTick(dt,now);crowdTick(dt);
+ if(MODE=='train')trainTick(dt,now);if(MODE=='car'||SP.ph){farmTick(dt);cdTick(dt,now);fvTick(dt);npcTick(dt);celularTick(dt,now);carPosTick(dt);espChip();spTick(dt,now);drvTick(dt,now);cityTick(dt,now)}carClockTick(dt);propTick(dt);arenaTick(dt);musTick();if(MODE=='menu')menuTick(dt,now);crowdTick(dt);
  dropsUpdate(dt);updTg();enemy.bloodUpdate(dt);enemy.visuals(dt);sparksUpdate(dt);
  window.AUDMODE=MODE;window.AUDCAM=cam;audLife(dt);PL.flash=Math.max(0,PL.flash-dt*1.5);PL.sh=Math.max(0,PL.sh-dt*4);fl.material.opacity=PL.flash+(PL.hp<30?.15:0);
  updHud(dt);
