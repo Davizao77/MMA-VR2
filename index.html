@@ -302,7 +302,7 @@ let VRON=false,roomOn=false;const roomW=[];
 function roomWalls(on){if(on===roomOn)return;roomOn=on;for(const b of roomW){if(on)W.addRigidBody(b,GR_G,GR_E|GR_I);else W.removeRigidBody(b)}}
 
 // ---------- Cena ----------
-const R=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.xr.enabled=true;document.body.prepend(R.domElement);
+const R=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});R.setPixelRatio(Math.min(devicePixelRatio,3));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.xr.enabled=true;document.body.prepend(R.domElement);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x07070c);scene.fog=new THREE.Fog(0x07070c,6,18);
 const cam=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.05,200),rig=new THREE.Group();rig.add(cam);scene.add(rig);
 const fl=new THREE.Mesh(new THREE.SphereGeometry(.4,8,8),new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0,side:THREE.BackSide,depthTest:false}));fl.renderOrder=99;cam.add(fl);
@@ -5135,9 +5135,9 @@ function runTick(dt){
  if(RUN.v<.05&&tg==0)RUN.v=0;
  return RUN.v}
 const clock=new THREE.Clock();let hudT=0,fpsA=60,snap=0,tsP=false,dsP=false,rsH=0;
-const AQ={max:Math.min(devicePixelRatio,2),pr:Math.min(devicePixelRatio,2),n:0,sum:0,cool:0,wait:8,t:0};
+const AQ={max:Math.min(devicePixelRatio,3),pr:Math.min(devicePixelRatio,3),n:0,sum:0,cool:0,wait:8,t:0};
 function aqTick(raw){if(R.xr.isPresenting||raw>.25){AQ.n=AQ.sum=0;return}AQ.sum+=raw;AQ.t+=raw;if(++AQ.n<45)return;const a=AQ.sum/AQ.n;AQ.n=AQ.sum=0;
- if(a>.024&&AQ.pr>1){AQ.pr=Math.max(1,AQ.pr-.25);AQ.cool=AQ.t+AQ.wait;AQ.wait=Math.min(60,AQ.wait*2);R.setPixelRatio(AQ.pr)}
+ if(a>.024&&AQ.pr>1.5){AQ.pr=Math.max(1.5,AQ.pr-.25);AQ.cool=AQ.t+AQ.wait;AQ.wait=Math.min(60,AQ.wait*2);R.setPixelRatio(AQ.pr)}
  else if(a<.0175&&AQ.pr<AQ.max&&AQ.t>AQ.cool){AQ.pr=Math.min(AQ.max,AQ.pr+.25);R.setPixelRatio(AQ.pr)}}
 R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
  const rawDt=clock.getDelta();aqTick(rawDt);const dt=Math.min(rawDt,.033)||.016,vr=R.xr.isPresenting;let mx=jx+(keys.d?1:0)-(keys.a?1:0),mz=jy+(keys.s?1:0)-(keys.w?1:0),turn=0,rs=false;
