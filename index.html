@@ -302,7 +302,7 @@ let VRON=false,roomOn=false;const roomW=[];
 function roomWalls(on){if(on===roomOn)return;roomOn=on;for(const b of roomW){if(on)W.addRigidBody(b,GR_G,GR_E|GR_I);else W.removeRigidBody(b)}}
 
 // ---------- Cena ----------
-const R=new THREE.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.xr.enabled=true;document.body.prepend(R.domElement);
+const R=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.xr.enabled=true;document.body.prepend(R.domElement);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x07070c);scene.fog=new THREE.Fog(0x07070c,6,18);
 const cam=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.05,200),rig=new THREE.Group();rig.add(cam);scene.add(rig);
 const fl=new THREE.Mesh(new THREE.SphereGeometry(.4,8,8),new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0,side:THREE.BackSide,depthTest:false}));fl.renderOrder=99;cam.add(fl);
@@ -1507,7 +1507,7 @@ for(let i=0;i<2;i++){const c=R.xr.getController(i),g=R.xr.getControllerGrip(i);r
  c.addEventListener('disconnected',()=>{if(c.userData.h)c.userData.h.g=null});
  for(const[ev,k,v]of[['squeezestart','sq',1],['squeezeend','sq',0],['selectstart','sel',1],['selectend','sel',0]])c.addEventListener(ev,()=>{const h=c.userData.h;if(h)h[k]=v})}
 if(navigator.xr)navigator.xr.isSessionSupported('immersive-vr').then(ok=>{if(ok)$('bvr').style.display=''}).catch(()=>{});
-$('bvr').onclick=()=>{initAudio();navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}).then(s=>{R.xr.setReferenceSpaceType('local-floor');try{R.xr.setFramebufferScaleFactor(.8)}catch(e){}R.shadowMap.enabled=false;sun.castShadow=false;MIR.off=1;scene.traverse(o=>{if(o.material){const a=Array.isArray(o.material)?o.material:[o.material];a.forEach(m=>m.needsUpdate=true)}});R.xr.setSession(s);document.body.classList.add('vr');s.addEventListener('end',()=>document.body.classList.remove('vr'))})};
+$('bvr').onclick=()=>{initAudio();navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}).then(s=>{R.xr.setReferenceSpaceType('local-floor');try{R.xr.setFramebufferScaleFactor(.8)}catch(e){}try{R.xr.setFoveation(.6)}catch(e){}R.shadowMap.enabled=false;sun.castShadow=false;MIR.off=1;scene.traverse(o=>{if(o.material){const a=Array.isArray(o.material)?o.material:[o.material];a.forEach(m=>m.needsUpdate=true)}});R.xr.setSession(s);document.body.classList.add('vr');s.addEventListener('end',()=>document.body.classList.remove('vr'))})};
 
 // ---------- Entrada celular/PC ----------
 let yaw=0,pitch=0,crouch=false,eyeH=1.65,jid=null,lid=null,jx=0,jy=0,j0,l0;const keys={};
@@ -2755,7 +2755,7 @@ function buildNpcs(){if(NPC.built)return;NPC.built=true;
 // PARAR: caminhe até o poste do tapete e deixe a mão em cima do botão ENCERRAR TREINO por 3 s (não existe botão de tela).
 const CD_PADF=[3.5,5,7],CD_MOB=2.6;   // m/s mínimos de BAIXA / MÉDIA / ALTA (antes 5 / 8,5 / 12, 6,5 / 10 / 13,5 e 8 / 11,5 / 15)
 const CD_NOME=['FRACA','BAIXA','MÉDIA','ALTA'],CD_GANHO=[0,.001,.002,.004],CD_COR=['#a8b0bc','#7fd0ff','#ffd23c','#ff5a3c'],CD_HEX=[0xa8b0bc,0x7fd0ff,0xffd23c,0xff5a3c];
-const CD_IDLE={x:-2.2,z:-3.8},CD_BAG={x:-3.0,z:-3.6},CD_PICK={x:-2.55,z:-3.55},CD_TR={x:0,z:-4.15},CD_POST={x:1.95,z:-2.55},CD_SEGURAR=3;
+const CD_IDLE={x:-2.2,z:-3.8},CD_BAG={x:-3.0,z:-3.6},CD_PICK={x:-2.55,z:-3.55},CD_TR={x:0,z:-4.15},CD_POST={x:.8,z:-2.3},CD_SPOT={x:0,z:-2.5},CD_SEGURAR=3;
 const CD_POSES=[   // [x,y,z, nx,ny,nz] de cada manopla no referencial do Candy (x+ = lado esquerdo dele); n = pra onde a face aponta
  [[.15,1.50,.52,-.15,0,1],[-.15,1.38,.52,.15,0,1]],                 // jab / direto: duas manoplas lado a lado
  [[.12,1.62,.55,0,-.05,1],[-.19,1.22,.40,.25,.12,1]],               // uma alta, uma baixa
@@ -2807,9 +2807,10 @@ function buildTreino(){if(CD.built)return;CD.built=true;CD.N=NPC.list.find(n=>n.
  for(let i=0;i<2;i++){const r=CD.rest[i];r.p.set(CD_BAG.x+(i?-.13:.10),.376,CD_BAG.z+(i?-.01:.0));r.n.set(0,-1,0);r.u.set(0,0,1);CD.pw[i].copy(r.p);CD.pn[i].copy(r.n);CD.pu[i].copy(r.u)}
  // poste do tapete: placa com o placar + botão de encerrar (segurar a mão)
  {const wd=mk({map:mkTex(128,256,(g,w,h)=>{g.fillStyle='#7a5a3a';g.fillRect(0,0,w,h);for(let i=0;i<120;i++){g.strokeStyle='rgba(40,25,10,'+rr(.08,.25)+')';g.lineWidth=rr(1,3);g.beginPath();const x=rr(0,w);g.moveTo(x,0);g.bezierCurveTo(x+rr(-8,8),h*.3,x+rr(-8,8),h*.7,x+rr(-6,6),h);g.stroke()}}),roughness:.9}),
-  pg=new THREE.Group();pg.position.set(CD_POST.x,0,CD_POST.z);pg.rotation.y=Math.atan2(0-CD_POST.x,-3.4-CD_POST.z);G.add(pg);CD.pg=pg;
+  pg=new THREE.Group();pg.position.set(CD_POST.x,0,CD_POST.z);pg.rotation.y=Math.atan2(CD_SPOT.x-CD_POST.x,CD_SPOT.z-CD_POST.z);G.add(pg);CD.pg=pg;
   const bx=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wd);m.position.set(x,y,z);m.castShadow=true;pg.add(m);return m};
   bx(.1,1.3,.1,0,.65,0);bx(1.0,.66,.05,0,1.58,.0);bx(.4,.4,.05,0,1.0,.03);
+  {const rg=new THREE.Mesh(new THREE.RingGeometry(.35,.45,40),new THREE.MeshBasicMaterial({color:0x39ff6a,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false}));rg.rotation.x=-Math.PI/2;rg.position.set(CD_SPOT.x,.03,CD_SPOT.z);rg.visible=false;G.add(rg);CD.ring=rg}
   CD.bd=cdCanvas(512,320);CD.bx=CD.bd.x;const bp=new THREE.Mesh(new THREE.PlaneGeometry(.92,.575),new THREE.MeshBasicMaterial({map:CD.bd.t}));bp.position.set(0,1.58,.03);pg.add(bp);
   CD.bt=cdCanvas(256,256);const btn=new THREE.Mesh(new THREE.PlaneGeometry(.3,.3),new THREE.MeshBasicMaterial({map:CD.bt.t,transparent:true}));btn.position.set(0,1.0,.06);btn.visible=false;pg.add(btn);CD.btn=btn;
   pg.updateMatrixWorld(true);CD.bw=btn.getWorldPosition(new THREE.Vector3())}
@@ -2922,7 +2923,8 @@ function cdTick(dt,now){if(!CD.built||!CAR)return;const N=CD.N;if(!N)return;cam.
    else{cdFace(N,bag,dt,5);const t=CD.t,bend=cdSm(t,0,.95)*(1-cdSm(t,1.55,2.5));N.sq=bend;N.lq=bend*.95;N.ikw=cdSm(t,.1,.7);
     if(!CD.held){mode='rest';if(t>=1.3){CD.held=true;for(let i=0;i<2;i++){cdRestLocal(N,i,CD.cur[i])}}}
     if(t>=2.6){CD.st='ir';N.ikw=1;N.sq=N.lq=0}}}
-  else if(st=='ir'){N.sq=N.lq=0;N.ikw=1;if(cdWalk(N,CD_TR.x,CD_TR.z,.8,dt)){CD.st='pad';CD.t=0;CD.pt=0;CD.pose=-1;CD.ss.t=0;CAR.treino.sess++;diCdIni();CD.svD=true;CD.bdD=true}}
+  else if(st=='ir'){N.sq=N.lq=0;N.ikw=1;if(cdWalk(N,CD_TR.x,CD_TR.z,.8,dt)){CD.st='esp';CD.t=0;cdBubble('Vem pra marca verde, garoto!')}}
+  else if(st=='esp'){N.ikw=1;N.sq=N.lq=0;mode='carry';cdFace(N,Math.atan2(e.x-N.px,e.z-N.pz),dt,4.5);if(Math.hypot(e.x-CD_SPOT.x,e.z-CD_SPOT.z)<.55){CD.st='pad';CD.t=0;CD.pt=0;CD.pose=-1;CD.ss.t=0;CAR.treino.sess++;diCdIni();CD.svD=true;CD.bdD=true;CD.bm.visible=false;CD.bub=0}}
   else if(st=='pad'){tst=1;mode='pose';N.ikw=1;N.sq=0;N.lq+=(.12-N.lq)*(1-Math.exp(-dt*3));cdFace(N,Math.atan2(e.x-N.px,e.z-N.pz),dt,4.5);CD.ss.t+=dt;
    CD.pt-=dt;if(CD.pt<=0){let p;do{p=(Math.random()*CD_POSES.length)|0}while(p==CD.pose);CD.pose=p;CD.pt=[.9,1.4,2.2,3,4][(Math.random()*5)|0]*rr(.8,1.2)}
    // botão ENCERRAR: segurar a mão em cima por CD_SEGURAR s
@@ -2946,8 +2948,8 @@ function cdTick(dt,now){if(!CD.built||!CAR)return;const N=CD.N;if(!N)return;cam.
   const X=CDV[8].crossVectors(CD.pu[i],CD.pn[i]);m.position.copy(CD.pw[i]);m.quaternion.setFromRotationMatrix(CDM2.makeBasis(X,CD.pu[i],CD.pn[i]));m.scale.setScalar(sc)}
  if(CD.st=='pad'&&CD.held)for(let i=0;i<2;i++)for(const h of hands)cdHit(h,i,now,N);
  // botão visível só no treino; fala; salvar
- CD.btn.visible=CD.st=='pad';
- if(CD.bub>0){CD.bub-=dt;CD.bm.position.set(N.px,1.98,N.pz);CD.bm.lookAt(e.x,1.98,e.z);if(CD.bub<=0||(CD.st!='a'))CD.bm.visible=false}
+ CD.btn.visible=CD.st=='pad';CD.ring.visible=CD.st=='pick'||CD.st=='ir'||CD.st=='esp';
+ if(CD.bub>0){CD.bub-=dt;CD.bm.position.set(N.px,1.98,N.pz);CD.bm.lookAt(e.x,1.98,e.z);if(CD.bub<=0||(CD.st!='a'&&CD.st!='esp'))CD.bm.visible=false}
  if(CD.bdD&&now>CD.bdN){CD.bdN=now+.2;CD.bdD=false;cdBoard()}
  CD.svT-=dt;if(CD.svD&&(CD.svT<=0||CD.st!='pad')){CD.svD=false;CD.svT=4;carSalvar()}
  cdFxTick(dt)}
@@ -2956,7 +2958,7 @@ function cdAbort(){diCdFim();if(!CD.built)return;const N=CD.N;if(!N)return;if(CD
  if(CD.st!='a'){CD.st='a';CD.held=false;N.px=CD_IDLE.x;N.pz=CD_IDLE.z;N.yaw=Math.atan2(-N.px,-N.pz);N.g.position.set(N.px,0,N.pz);N.g.rotation.y=N.yaw;cdSnapFeet(N);
   for(let i=0;i<2;i++){CD.pw[i].copy(CD.rest[i].p);CD.pn[i].copy(CD.rest[i].n);CD.pu[i].copy(CD.rest[i].u);CD.pm[i].position.copy(CD.rest[i].p);CD.pm[i].scale.setScalar(N.c.s)}
   carSalvar()}
- N.fx=0;N.ikw=0;N.sq=N.lq=N.st=0;N.sp=0;N.vx=N.vz=0;CD.hold=0;CD.bdD=true;CD.btn.visible=false}
+ N.fx=0;N.ikw=0;N.sq=N.lq=N.st=0;N.sp=0;N.vx=N.vz=0;CD.hold=0;CD.bdD=true;CD.btn.visible=false;CD.ring.visible=false}
 
 // ======================= PARTE 4: SPARRING COM O ALEXIE =======================
 // Tudo novo. Fluxo (sem teletransporte): encoste a luva (devagar) no Alexie -> painel SPARRING / CONVERSAR.
@@ -5051,7 +5053,7 @@ function setEnv(k){OCT0.forEach(q=>q.visible=true);AENV=k;audEnv(k);const f=k=='
 function enemyVis(v){enemyObjs.forEach(o=>o.visible=v);ball.mesh.visible=v;hudM.visible=v}
 function spawn(){rig.position.set(0,0,0);rig.rotation.y=0;yaw=0;pitch=0;crouch=false}
 function setBody(){document.body.classList.toggle('inmenu',MODE=='menu');document.body.classList.toggle('train',MODE=='train');document.body.classList.toggle('car',MODE=='car')}
-function toMenu(){drvAbort();PROP_VOLTA=false;cdAbort();spAbort();hands.forEach(h=>h.rel());const dC=MODE=='car';MODE='menu';MS=dC?'car':'main';CARMSG='';reset();RD.ph='menu';RD.fl=0;hidePads();setEnv('menu');enemyVis(false);trainG.visible=false;menuP.visible=false;spawn();$('msg').textContent='';setBody();redrawMenus()}
+function toMenu(){if(MODE=='car')carPosTick(0,true);drvAbort();PROP_VOLTA=false;cdAbort();spAbort();hands.forEach(h=>h.rel());const dC=MODE=='car';MODE='menu';MS=dC?'car':'main';CARMSG='';reset();RD.ph='menu';RD.fl=0;hidePads();setEnv('menu');enemyVis(false);trainG.visible=false;menuP.visible=false;spawn();$('msg').textContent='';setBody();redrawMenus()}
 function startFight(){arenaOff();MODE='fight';setEnv(ARENA);trainG.visible=false;menuP.visible=false;enemyVis(true);spawn();reset();setBody();bellSnd(1)}
 function startTrain(k){hands.forEach(h=>h.rel());MODE='train';TR.k=k;reset();RD.ph='train';RD.fl=0;hidePads();setEnv('gym');enemyVis(false);trainG.visible=true;menuP.visible=false;gEL.visible=k=='el';gBB.visible=k=='bb';gSB.visible=k=='sb';dg.visible=k=='dm';gPM.visible=k=='pm';sdP.visible=k!='pm';trainReset();spawn();$('msg').textContent='';setBody()}
 // ---------- Painel de testes (botão "Testes" no menu e na barra do topo): áudios + efeitos do rosto ----------
@@ -5133,8 +5135,12 @@ function runTick(dt){
  if(RUN.v<.05&&tg==0)RUN.v=0;
  return RUN.v}
 const clock=new THREE.Clock();let hudT=0,fpsA=60,snap=0,tsP=false,dsP=false,rsH=0;
+const AQ={max:Math.min(devicePixelRatio,2),pr:Math.min(devicePixelRatio,2),n:0,sum:0,cool:0,wait:8,t:0};
+function aqTick(raw){if(R.xr.isPresenting||raw>.25){AQ.n=AQ.sum=0;return}AQ.sum+=raw;AQ.t+=raw;if(++AQ.n<45)return;const a=AQ.sum/AQ.n;AQ.n=AQ.sum=0;
+ if(a>.024&&AQ.pr>1){AQ.pr=Math.max(1,AQ.pr-.25);AQ.cool=AQ.t+AQ.wait;AQ.wait=Math.min(60,AQ.wait*2);R.setPixelRatio(AQ.pr)}
+ else if(a<.0175&&AQ.pr<AQ.max&&AQ.t>AQ.cool){AQ.pr=Math.min(AQ.max,AQ.pr+.25);R.setPixelRatio(AQ.pr)}}
 R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
- const dt=Math.min(clock.getDelta(),.033)||.016,vr=R.xr.isPresenting;let mx=jx+(keys.d?1:0)-(keys.a?1:0),mz=jy+(keys.s?1:0)-(keys.w?1:0),turn=0,rs=false;
+ const rawDt=clock.getDelta();aqTick(rawDt);const dt=Math.min(rawDt,.033)||.016,vr=R.xr.isPresenting;let mx=jx+(keys.d?1:0)-(keys.a?1:0),mz=jy+(keys.s?1:0)-(keys.w?1:0),turn=0,rs=false;
  VRON=vr;roomWalls(vr);
  if(vr){mx=mz=0;if(MODE!='car')rig.position.set(0,0,0);rig.rotation.y=DRV.on?DRV.ry:0;const ss=R.xr.getSession();let ts=false,ds=false;if(ss)for(const src of ss.inputSources){const gp=src.gamepad;if(!gp)continue;if(MODE=='car'&&src.handedness=='left'&&gp.axes.length>3){mx=gp.axes[2];mz=gp.axes[3]}
    const bY=src.handedness=='left'&&gp.buttons[5]&&gp.buttons[5].pressed;if(bY)ds=true;if(gp.buttons[4]&&gp.buttons[4].pressed||!bY&&gp.buttons[5]&&gp.buttons[5].pressed)rs=true;if(gp.buttons[3]&&gp.buttons[3].pressed)ts=true}
@@ -5148,7 +5154,7 @@ R.setAnimationLoop(ts=>{FT=(ts||performance.now())/1000;
  if(rv>.05){const k=rv<.6?1:1-Math.exp(-dt/.12);RUN.hx+=(fw.x-RUN.hx)*k;RUN.hz+=(fw.z-RUN.hz)*k;const hl=Math.hypot(RUN.hx,RUN.hz)||1,hx=RUN.hx/hl,hz=RUN.hz/hl,n=Math.ceil(rv*dt/.12),sd=rv*dt/n;
   for(let i=0;i<n;i++){rig.position.x+=hx*sd;rig.position.z+=hz*sd;if(MODE=='car'&&CITY.on)cityWalkFix(rig.position)}}
  else{RUN.hx=fw.x;RUN.hz=fw.z}
- if(DRV.on||(MODE=='car'&&typeof CD!='undefined'&&CD.built&&CD.st&&CD.st!='a'&&CD.st!='home'))mx=mz=0;rig.position.addScaledVector(fw,-mz*1.8*dt);rig.position.x+=-fw.z*mx*1.8*dt;rig.position.z+=fw.x*mx*1.8*dt;
+ if(DRV.on||(MODE=='car'&&typeof CD!='undefined'&&CD.built&&CD.st=='pad'&&Math.hypot(eye.x-CD_SPOT.x,eye.z-CD_SPOT.z)<1.3))mx=mz=0;rig.position.addScaledVector(fw,-mz*1.8*dt);rig.position.x+=-fw.z*mx*1.8*dt;rig.position.z+=fw.x*mx*1.8*dt;
  walkTick(dt,mx,mz,vr);{const rl=Math.hypot(rig.position.x,rig.position.z),RLM=MODE=='car'?FARM_R:2.8;if(MODE=='car'&&CITY.on){if(!DRV.on)cityWalkFix(rig.position)}else if(rl>RLM){rig.position.x*=RLM/rl;rig.position.z*=RLM/rl}}
  rig.updateMatrixWorld(true);cam.getWorldPosition(eye);
  // mãos
