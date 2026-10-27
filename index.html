@@ -1197,31 +1197,28 @@ function grFloorTick(dt,vr){
  const hy=vr?cam.position.y:eyeH;PL.hy=hy;
  if(!PL.ph&&hy<.55)PL.ph=true;else if(PL.ph&&hy>.75)PL.ph=false;   // sensor físico (com histerese): cabeça rente ao chão
  PL.fdY+=((PL.fd?1:0)-PL.fdY)*Math.min(1,dt*(PL.fd?1.5:5));   // cai devagar (~2 s) pra dar tempo de deitar; levantar é rápido
- if(vr){rig.position.y=-PL.fdY*Math.max(0,hy-.3);PL.rigDrop=PL.fdY>.01?1:0}   // no VR a câmera desce até o chão quando você é derrubado
+ if(vr&&rig.position.y!==0)rig.position.y=0;   // no VR a câmera NUNCA é mexida: quem deita no chão é você, de verdade
+ PL.lie=vr?hy<.75:true;   // deitado de verdade (VR: cabeça baixa); no celular/PC não tem como deitar, conta sempre
  const g=PL.fd||PL.ph;PL.gT=g?PL.gT+dt:0;PL.gnd=g;
- if(PL.fd&&PL.lock>0){PL.lock-=dt;if(PL.lock<=0){PL.lock=0;hands.forEach(h=>buzz(h,.5,80))}}
+ if(PL.fd&&PL.lock>0&&PL.lie){PL.lock-=dt;if(PL.lock<=0){PL.lock=0;hands.forEach(h=>buzz(h,.5,80))}}
  const k=!!keys['g'];if(k&&!PL._g){if(!PL.fd)plDown();else if(PL.lock<=0)plUp()}PL._g=k;   // teclado: G derruba (teste) / levanta depois dos 10 s
  if(PL.rvCd>0)PL.rvCd-=dt;
  if(PL.fd&&PL.lock<=0&&typeof enemy!='undefined'){const kr=!!keys['r'],hold=enemy.hn>0&&(hands[0].btn||hands[1].btn);if((kr||hold)&&!(PL.rvCd>0)){PL.rvh=(PL.rvh||0)+dt;if(kr||PL.rvh>.45){PL.rvh=0;plReverse()}}else PL.rvh=0}   // R, ou segurar o inimigo (mão em cima dele) = reverter
  if(PL.fd&&PL.lock<=0&&hands[0].btn&&hands[1].btn&&!(typeof enemy!='undefined'&&enemy.hn>0)){PL.gup+=dt;if(PL.gup>.6)plUp()}else PL.gup=0;   // as duas mãos (botões) seguradas = levantar
  if(vr&&PL.fd&&PL.lock<=0&&hy>1.1){PL.hup=(PL.hup||0)+dt;if(PL.hup>.5){PL.hup=0;plUp()}}else PL.hup=0;   // VR: liberado e de pé de verdade = levanta
  grHud()}
+const BUILD='27.10-f';{const d=document.createElement('div');d.textContent='v'+BUILD;d.style.cssText='position:fixed;left:6px;bottom:2px;font:11px sans-serif;color:#fff8;z-index:5;pointer-events:none';document.body.appendChild(d)}   // marca de versão (confere se o GitHub atualizou)
 let _grHt='',_grBk='',_grBm=null,_grBc=null;
 // aviso 3D preso à câmera (no VR o aviso em HTML não aparece): DEITE! durante os 10 s, depois LIBERADO
-function grBanner(){let key='';if(MODE=='fight'&&PL.fd)key=PL.lock>0?'D'+Math.ceil(PL.lock):'L';
+function grBanner(){let key='';if(MODE=='fight'&&PL.fd)key=PL.lock>0?(PL.lie?'D':'E')+Math.ceil(PL.lock):'L';
  if(!_grBm){if(!key)return;const c=document.createElement('canvas');c.width=512;c.height=224;_grBc=c;const m=new THREE.Mesh(new THREE.PlaneGeometry(.72,.315),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false,depthWrite:false,fog:false}));m.renderOrder=1000;m.position.set(0,.14,-.85);cam.add(m);_grBm=m}
  if(key===_grBk)return;_grBk=key;_grBm.visible=!!key;if(!key)return;
- const g=_grBc.getContext('2d');g.clearRect(0,0,512,224);g.fillStyle='#000c';g.fillRect(0,0,512,224);g.strokeStyle=key[0]=='D'?'#ff3b2a':'#39ff6a';g.lineWidth=8;g.strokeRect(4,4,504,216);g.textAlign='center';
- if(key[0]=='D'){g.fillStyle='#ff3b2a';g.font='bold 104px sans-serif';g.fillText('DEITE!',256,110);g.fillStyle='#fff';g.font='bold 34px sans-serif';g.fillText('Você caiu. Não levanta por '+key.slice(1)+' s',256,172)}
- else{g.fillStyle='#39ff6a';g.font='bold 70px sans-serif';g.fillText('LIBERADO',256,92);g.fillStyle='#fff';g.font='bold 30px sans-serif';g.fillText('Levante-se ou reverta (segure ele)',256,148);g.fillText('Levantar: fique de pé / 2 botões',256,190)}
+ const g=_grBc.getContext('2d');g.clearRect(0,0,512,224);g.fillStyle='#000c';g.fillRect(0,0,512,224);g.strokeStyle=key[0]!='L'?'#ff3b2a':'#39ff6a';g.lineWidth=8;g.strokeRect(4,4,504,216);g.textAlign='center';
+ if(key[0]=='D'||key[0]=='E'){g.fillStyle='#ff3b2a';g.font='bold 104px sans-serif';g.fillText('DEITE!',256,110);g.fillStyle='#fff';g.font='bold 32px sans-serif';g.fillText(key[0]=='D'?'Fique deitado por '+key.slice(1)+' s':'O tempo só conta com você deitado',256,160)}
+ else{g.fillStyle='#39ff6a';g.font='bold 70px sans-serif';g.fillText('LIBERADO',256,92);g.fillStyle='#fff';g.font='bold 30px sans-serif';g.fillText('Levante-se de verdade pra levantar',256,140);g.fillText('Ou segure ele pra reverter',256,178)}
+ g.fillStyle='#8aa';g.font='bold 18px sans-serif';g.fillText('versão '+BUILD,256,212)
  _grBm.material.map.needsUpdate=true}
-// celular/PC: botões de toque LEVANTAR / REVERTER quando liberado
-function grBtns(){let e=document.getElementById('gndbtns');const on=MODE=='fight'&&PL.fd&&PL.lock<=0&&!R.xr.isPresenting;
- if(!e){if(!on)return;e=document.createElement('div');e.id='gndbtns';e.style.cssText='position:fixed;left:50%;top:calc(190px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:none;gap:12px;z-index:27';
-  const mk=(t,f,c)=>{const b=document.createElement('button');b.textContent=t;b.style.cssText='padding:14px 20px;border-radius:14px;border:2px solid '+c+';background:#000d;color:#fff;font:800 17px sans-serif';b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();f()});e.appendChild(b)};
-  mk('LEVANTAR',()=>{if(PL.fd&&PL.lock<=0)plUp()},'#39ff6a');mk('REVERTER',()=>{if(PL.fd&&PL.lock<=0&&!(PL.rvCd>0))plReverse()},'#ffd23c');document.body.appendChild(e)}
- e.style.display=on?'flex':'none'}
-function grHud(){grBanner();grBtns();let t='';if(MODE=='fight'){if(!PL.fd&&typeof enemy!='undefined'&&enemy.gr&&enemy.gr.ph=='reach')t='⚠ ELE VAI NO SEU ROSTO!\nsegure a mão dele rápido';else if(!PL.fd&&typeof enemy!='undefined'&&enemy.tk&&enemy.tk.ph!='res')t='⚠ ELE VAI NAS SUAS PERNAS!\nsegure ele rápido';else if(PL.fd)t=PL.lock>0?'DEITE!\nnão levanta nem reverte: '+Math.ceil(PL.lock)+'s':'NO CHÃO\nliberado!\nlevantar: G ou as duas mãos\nreverter: R ou segure o inimigo';else if(PL.ph)t='NO CHÃO (sensor)'}
+function grHud(){grBanner();let t='';if(MODE=='fight'){if(!PL.fd&&typeof enemy!='undefined'&&enemy.gr&&enemy.gr.ph=='reach')t='⚠ ELE VAI NO SEU ROSTO!\nsegure a mão dele rápido';else if(!PL.fd&&typeof enemy!='undefined'&&enemy.tk&&enemy.tk.ph!='res')t='⚠ ELE VAI NAS SUAS PERNAS!\nsegure ele rápido';else if(PL.fd)t=PL.lock>0?'DEITE!\nfique deitado: '+Math.ceil(PL.lock)+'s':'NO CHÃO\nliberado!\nlevante-se de verdade\nou segure o inimigo pra reverter';else if(PL.ph)t='NO CHÃO (sensor)'}
  if(t===_grHt)return;_grHt=t;let e=document.getElementById('gndchip');if(!e){e=document.createElement('div');e.id='gndchip';e.style.cssText='position:fixed;left:50%;top:calc(104px + env(safe-area-inset-top,0px));transform:translateX(-50%);padding:8px 14px;border-radius:16px;background:#000d;border:2px solid #ff4a3a;color:#ffb0a8;font:800 15px sans-serif;text-align:center;line-height:1.35;z-index:26;pointer-events:none;white-space:pre-line;display:none';document.body.appendChild(e)}
  e.textContent=t;e.style.display=t?'block':'none'}
 class Enemy{
