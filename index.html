@@ -301,8 +301,10 @@ function load(urls,test){return new Promise((ok,no)=>{let i=0;(function n(){if(t
 let A;
 load(['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js','https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'],()=>window.THREE)
 .then(()=>load(['https://cdn.jsdelivr.net/gh/kripken/ammo.js@main/builds/ammo.js','https://cdn.jsdelivr.net/gh/kripken/ammo.js@HEAD/builds/ammo.js','https://unpkg.com/ammo.js@0.0.10/ammo.js'],()=>window.Ammo))
-.then(()=>{Ammo().then(lib=>{A=lib;try{main()}catch(e){const d=document.getElementById('err');d.textContent+='ERRO main: '+(e&&e.stack||e)+'\n';throw e}})})
-.catch(()=>{$('msg').textContent='Falha ao carregar bibliotecas (precisa de internet).'});
+.then(()=>{const iniciar=lib=>{A=lib;try{main()}catch(e){const d=document.getElementById('err');d.textContent+='ERRO main: '+(e&&e.stack||e)+'\n';throw e}};
+ const r=Ammo();   // build novo devolve Promise/thenable; build asm.js clássico devolve a lib direto (e às vezes um thenable que já é a própria lib)
+ if(r&&typeof r.then==='function'&&!r.btVector3){r.then(iniciar)}else iniciar(r)})
+.catch(e=>{$('msg').textContent='Falha ao carregar bibliotecas (precisa de internet).';const d=document.getElementById('err');if(d)d.textContent+='ERRO carga: '+(e&&(e.stack||e.message)||'three/ammo não carregou')+'\n'});
 
 function main(){
 $('msg').textContent='';
@@ -3962,7 +3964,8 @@ const CAR_ROSTER=[
  {id:'forja5',nome:'Fornalha',estilo:'Campeão da Forja',n:90,dif:13,forja:1}];
 // recompensa EXTRA por vencer cada um (além do prêmio normal da proposta): grana + seguidores + título
 // CONVITE: 1 = jogador convidado pro evento (o Claude muda isso no index.html depois de ler o JSON de resultados). Sem convite o lutador NÃO aparece nas propostas nem como rival.
-const FORJA_CONVITE={forja1:1,forja2:1,forja3:1,forja4:0,forja5:0};   // CONVIDADO (3 nocautes no round 1 numa noite): Fagulha, Martelo e Bigorna liberados; Cinza e Fornalha só depoisconst forjaOk=f=>{const c=CAR_ROSTER_ID[f.id];return !(c&&c.forja)||!!FORJA_CONVITE[f.id]};
+const FORJA_CONVITE={forja1:1,forja2:1,forja3:1,forja4:0,forja5:0};   // CONVIDADO (3 nocautes no round 1 numa noite): Fagulha, Martelo e Bigorna liberados; Cinza e Fornalha só depois
+const forjaOk=f=>{const c=CAR_ROSTER_ID[f.id];return !(c&&c.forja)||!!FORJA_CONVITE[f.id]};
 const FORJA_R={forja1:{grana:600,titulo:'Faísca Viva'},forja2:{grana:1500,titulo:'Quebra-Ossos'},forja3:{grana:1200,titulo:'Derrubador de Muralha'},forja4:{grana:2500,titulo:'Sombra da Forja'},forja5:{grana:6000,titulo:'Campeão da Arena Forja'}};
 const CAR_ROSTER_ID={};CAR_ROSTER.forEach(f=>{f.r0=1000+(f.n-50)*8;CAR_ROSTER_ID[f.id]=f});
 const carR1=x=>Math.round(x*10)/10;
