@@ -340,6 +340,7 @@ function roomWalls(on){if(on===roomOn)return;roomOn=on;for(const b of roomW){if(
 
 // ---------- Cena ----------
 const R=new THREE.WebGLRenderer({antialias:true,stencil:false,powerPreference:'high-performance'});R.setPixelRatio(Math.min(devicePixelRatio,3));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.xr.enabled=true;document.body.prepend(R.domElement);
+{const _CT=THREE.CanvasTexture,_an=Math.min(16,R.capabilities.getMaxAnisotropy?R.capabilities.getMaxAnisotropy():1);THREE.CanvasTexture=class extends _CT{constructor(...a){super(...a);this.anisotropy=_an}}}   // painéis/textos em canvas ficam nítidos mesmo vistos de lado ou de longe
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x07070c);scene.fog=new THREE.Fog(0x07070c,6,18);
 const cam=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.05,200),rig=new THREE.Group();rig.add(cam);scene.add(rig);
 const fl=new THREE.Mesh(new THREE.SphereGeometry(.4,8,8),new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0,side:THREE.BackSide,depthTest:false}));fl.renderOrder=99;cam.add(fl);
@@ -3110,7 +3111,7 @@ function cdPadTex(){return mkTex(256,300,(g,w,h)=>{g.fillStyle='#17110f';g.fillR
  g.strokeStyle='#f3efe6';g.lineWidth=7;g.beginPath();g.arc(w/2,h/2,50,0,TAU);g.stroke();g.fillStyle='#7d1613';g.beginPath();g.arc(w/2,h/2,40,0,TAU);g.fill();
  g.strokeStyle='rgba(243,239,230,.7)';g.lineWidth=3;g.beginPath();g.arc(w/2,h/2,24,0,TAU);g.stroke();
  g.fillStyle='rgba(0,0,0,.18)';g.fillRect(24,h*.78,w-48,5);g.fillRect(24,h*.22,w-48,5)})}
-function cdCanvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d'),t=new THREE.CanvasTexture(c);return{c,x,t,w,h}}
+function cdCanvas(w,h){const k=Math.max(1,Math.min(2,2048/Math.max(w,h))),c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);const x=c.getContext('2d');x.scale(k,k);const t=new THREE.CanvasTexture(c);return{c,x,t,w,h}}   // resolução 2x: o desenho continua em coordenadas w×h, só fica mais nítido
 function buildTreino(){if(CD.built)return;CD.built=true;CD.N=NPC.list.find(n=>n.c.id=='candy');
  const G=new THREE.Group();farmG.add(G);CD.G=G;const mk=o=>new THREE.MeshStandardMaterial(o);
  // tapete de borracha de treino (3 x 3 m) com a marca do Candy (X) e a sua (pegadas)
@@ -3437,7 +3438,7 @@ const SP_CONV=['E aí! Hoje eu vou pegar leve... mentira, não vou.','O Candy é
 function spFalar(N){const L=SP_CONV.slice();L[3]='Você está em #'+carPos()+' no ranking. Dá pra subir mais!';SP.talk=(SP.talk||0);spSay(1,diFala('alexie')||L[SP.talk++%L.length],N)}
 function spIr(){const N=SP.N=NPC.list.find(n=>n.c.id=='alexie');if(!N||!CD.built||CD.st!='a')return;if(CAR.sim<spD().fora)return;if(mmaBloq()){mmaMsg();return}
  spBuild();spMenuClose();SP.ph='ir';SP.t=0;SP.t30=0;SP.tom=SP.tomSG=SP.dado=0;SP.sang=false;SP.fim='';SP.wait=0;SP.hold=0;SP.cmt=8;CD.st='spec';CD.menu&&cdMenuClose();SP.mk.visible=true;SP.bm.visible=true;SP.ps.visible=true;spBtnDraw()}
-function spLutaIni(){const N=SP.N;SP.ph='luta';SP.on=true;SP.t=0;SP.t30=0;SP.mk.visible=false;N.g.visible=false;hands.forEach(h=>h.rel());MODE='fight';setEnv('farm');trainG.visible=false;menuP.visible=false;enemyVis(true);reset();CARF=null;RD.ph='fight';RD.fl=0;RD.t=1e9;RD.tot=1e9;setBody();
+function spLutaIni(){const N=SP.N;SP.ph='luta';SP.on=true;SP.t=0;SP.t30=0;SP.mk.visible=false;N.g.visible=false;hands.forEach(h=>h.rel());MODE='fight';setEnv('farm');trainG.visible=false;menuP.visible=false;enemyVis(true);reset();CARF=null;RD.ph='fight';RD.fl=0;RD.t=1e9;RD.tot=1e9;setBody();enemy.rest=false;enemy.rw=false;enemy.nextAtk=1.5;   // reset() deixa o rival em modo intervalo (parado); no sparring ele luta desde o início
  const s=spD();s.sess++;diSpIni();spLuvas(true);axlLook(true);bellSnd(1);carSalvar()}
 function spFim(motivo){diSpFim(motivo);const N=SP.N;if(SP.on){SP.on=false;spLuvas(false);axlLook(false);const P=enemy.P.pelvis;if(N){N.px=P.p.x;N.pz=P.p.z;N.yaw=Math.atan2(SP.eye.x-N.px,SP.eye.z-N.pz);N.g.position.set(N.px,0,N.pz);N.g.rotation.y=N.yaw;cdSnapFeet(N);N.g.visible=true}
   hands.forEach(h=>h.rel());MODE='car';reset();RD.ph='car';RD.fl=0;RD.tot=5;RD.len=180;hidePads();setEnv('farm');enemyVis(false);trainG.visible=false;menuP.visible=false;setBody();bellSnd(3)}
@@ -4208,7 +4209,7 @@ CARHK={
 // Tudo novo e só é construído na 1ª vez que você entra na carreira. O celular começa num suporte em cima da mesinha.
 // Pegar: aperte o grip/gatilho com a mão perto dele (ele acompanha a mão, virado pro seu rosto); soltar: ele CAI de verdade (gravidade) na mesa ou no chão.
 // Tocar na tela: leve a luva da outra mão até a tela (sem apertar nada). Nada teleporta: se cair no chão, abaixe e pegue.
-const CELW=.085,CELH=.172,CELR=.012,CELT=.0085,SCW=.077,CVW=512,CVH=1088,CVS=2,SCH=SCW*CVH/CVW;
+const CELW=.085,CELH=.172,CELR=.012,CELT=.0085,SCW=.077,CVW=512,CVH=1088,CVS=/OculusBrowser|Quest/i.test(navigator.userAgent)?2:3,SCH=SCW*CVH/CVW;
 const MESA={x:.9,z:-1.6,topY:.78,hx:.46,hz:.30,built:false,g:null,yaw:0};
 const CEL={built:false,g:null,tex:null,cv:null,cx:null,dirty:true,hit:[],hover:'',screen:'home',pg:0,sel:null,mode:'stand',held:null,vel:new THREE.Vector3(),sc:1,min:-1,
  P0:new THREE.Vector3(),flatQ:new THREE.Quaternion(),o:new THREE.Object3D(),a:new THREE.Vector3(),b:new THREE.Vector3(),q:new THREE.Quaternion(),e:new THREE.Euler(),eye:new THREE.Vector3()};
@@ -4448,7 +4449,7 @@ function musLoopSet(v){MUS.loop=!!v;if(MUS.au)MUS.au.loop=MUS.loop}
 function musLoopToggle(){musLoopSet(!MUS.loop);if(CAR){CAR.musica.loop=MUS.loop;carSalvar()}CEL.dirty=true}
 function musProx(d,auto){if(!MUSICAS.length)return;MUS.i=(MUS.i+d+MUSICAS.length)%MUSICAS.length;musSel();if(auto)MUS.quer=true;CEL.dirty=true}
 function musVol(d){MUS.vol=Math.round(cl(MUS.vol+d,0,1)*10)/10;if(MUS.au)MUS.au.volume=MUS.vol;if(CAR){CAR.musica.vol=MUS.vol;carSalvar()}CEL.dirty=true}
-function musTick(){const a=MUS.au;if(!a)return;const deve=MODE=='car'&&MUS.quer;
+function musTick(){const a=MUS.au;if(!a)return;const deve=(MODE=='car'||SP.on)&&MUS.quer;
  if(deve&&a.paused){if(performance.now()>MUS.t){MUS.t=performance.now()+1500;const p=a.play();if(p&&p.catch)p.catch(()=>{})}}else if(!deve&&!a.paused)a.pause()}
 // ---------- mesa: o jogador não atravessa ----------
 function mesaCol(){if(!MESA.built)return;CEL.a.set(rig.position.x,.5,rig.position.z);MESA.g.worldToLocal(CEL.a);const ex=MESA.hx+.27,ez=MESA.hz+.27;
@@ -7406,7 +7407,7 @@ function runTick(dt){
  if(RUN.v<.05&&tg==0)RUN.v=0;
  return RUN.v}
 const clock=new THREE.Clock();let hudT=0,fpsA=60,snap=0,tsP=false,dsP=false,rsH=0;
-const AQ={max:Math.min(devicePixelRatio,3),pr:Math.min(devicePixelRatio,3),n:0,sum:0,cool:0,wait:8,t:0};
+const AQ={min:Math.min(2,Math.min(devicePixelRatio,3)),max:Math.min(devicePixelRatio,3),pr:Math.min(devicePixelRatio,3),n:0,sum:0,cool:0,wait:8,t:0};
 // ---------- VR: foveação adaptativa. Começa na sua (0,6) e só aumenta se o quadro realmente estourar; volta sozinha quando alivia. Se aumentar não ajudar (gargalo é CPU), desiste e volta ao normal ----------
 // qualidade do VR por URL: ?res=1.0 (resolução, padrão .8) e &fov=.8 (foveação base, padrão .6). Ex.: seusite/index.html?res=1&fov=.85
 const _qp=new URLSearchParams(location.search),VRRES=Math.min(1.4,Math.max(.6,parseFloat(_qp.get('res'))||.8)),_fv=parseFloat(_qp.get('fov'));
@@ -7423,7 +7424,7 @@ function vrqTick(raw){if(!R.xr.isPresenting||raw>.2){VRQ.n=VRQ.sum=0;return}VRQ.
  else if(a<tg*1.07){if(++VRQ.ok>=16&&VRQ.hold<=0&&VRQ.f>VRQ.base){vrqSet(Math.max(VRQ.base,VRQ.f-.1));VRQ.ok=0}}
  else VRQ.ok=0}
 function aqTick(raw){if(R.xr.isPresenting||raw>.25){AQ.n=AQ.sum=0;return}AQ.sum+=raw;AQ.t+=raw;if(++AQ.n<45)return;const a=AQ.sum/AQ.n;AQ.n=AQ.sum=0;
- if(a>.024&&AQ.pr>1.5){AQ.pr=Math.max(1.5,AQ.pr-.25);AQ.cool=AQ.t+AQ.wait;AQ.wait=Math.min(60,AQ.wait*2);R.setPixelRatio(AQ.pr)}
+ if(a>.024&&AQ.pr>AQ.min){AQ.pr=Math.max(AQ.min,AQ.pr-.25);AQ.cool=AQ.t+AQ.wait;AQ.wait=Math.min(60,AQ.wait*2);R.setPixelRatio(AQ.pr)}
  else if(a<.0175&&AQ.pr<AQ.max&&AQ.t>AQ.cool){AQ.pr=Math.min(AQ.max,AQ.pr+.25);R.setPixelRatio(AQ.pr)}}
 const CDLK={on:0,x:0,z:0};
 function cdLock(){if(MODE=='car'&&CD.built&&CD.st=='pad'){if(!CDLK.on){CDLK.on=1;CDLK.x=rig.position.x;CDLK.z=rig.position.z}rig.position.x=CDLK.x;rig.position.z=CDLK.z}else CDLK.on=0}   // treino com o Candy (manoplas): trava a posição virtual na marca; stick, corrida no lugar e empurrão de NPC não movem mais. Só andar de verdade no VR
