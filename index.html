@@ -1207,7 +1207,7 @@ function grFloorTick(dt,vr){
  if(PL.fd&&PL.lock<=0&&hands[0].btn&&hands[1].btn&&!(typeof enemy!='undefined'&&enemy.hn>0)){PL.gup+=dt;if(PL.gup>.6)plUp()}else PL.gup=0;   // as duas mãos (botões) seguradas = levantar
  if(vr&&PL.fd&&PL.lock<=0&&hy>1.1){PL.hup=(PL.hup||0)+dt;if(PL.hup>.5){PL.hup=0;plUp()}}else PL.hup=0;   // VR: liberado e de pé de verdade = levanta
  grHud()}
-const BUILD='27.10-f';
+const BUILD='27.10-g';
 let _grHt='',_grBk='',_grBm=null,_grBc=null;
 // aviso 3D preso à câmera (no VR o aviso em HTML não aparece): DEITE! durante os 10 s, depois LIBERADO
 function grBanner(){let key='';if(MODE=='fight'&&PL.fd)key=PL.lock>0?(PL.lie?'D':'E')+Math.ceil(PL.lock):'L';
@@ -3965,7 +3965,7 @@ function celLobby(){const g=CEL.cx,cur=lbTier();celHdr('LOBBY',()=>celGo('home')
 // Exportar/importar só fora do VR (o seletor de arquivos do navegador não abre dentro do VR).
 // Outras partes usam: carMov(+valor,'motivo') pra ganhar e carMov(-valor,'motivo') pra gastar (devolve false se não tem saldo).
 const CAR_CHAVE='mmavr2car',CAR_TIPO='mmavr2-carreira',CAR_VERSAO=7,CAR_INICIO=0,CAR_EXTRATO_MAX=100,CAR_CARTEL_MAX=200,CAR_FEED_MAX=40,CAR_EU_R=760,CAR_DIAS_MAX=400;
-let CAR=null,CARMSG='',CARCONF=0,CARAVISO='';let PROP_MSG='',PROP_VOLTA=false;const PROP_N=4,PROP_REC_MAX=2;
+let CAR=null,CARMSG='',CARCONF=0,CARAVISO='';let PROP_MSG='',PROP_VOLTA=false;const PROP_N=4,PROP_TOT=8,PROP_REC_MAX=2;
 // ---------- Parte 2: lutadores do circuito (nível n = força base; rating inicial = 1000 + (n-50)*8) ----------
 // Os lutadores são fixos aqui no código; o JSON da carreira guarda só o que muda (rating r e vitórias/derrotas/empates).
 const CAR_ROSTER=[
@@ -5180,13 +5180,20 @@ function carPropGera(){const p=CAR.prop,rng=carRng(carHash(CAR.criada+'|prop|'+C
  while(pick.length<PROP_N&&pool.length)pick.push(pool.splice(Math.floor(rng()*pool.length),1)[0]);
  {const fd=forjaDevida();if(fd&&pick.length&&!pick.some(f=>CAR_ROSTER_ID[f.id].forja))pick[0]=fd}
  pick.sort((a,b)=>a.r-b.r);p.lista=pick.map(f=>({id:f.id,premio:carPropPremio(f.r,eu),st:'p'}))}
+// completa a lista até PROP_TOT (2 páginas no celular) e garante TODAS as lutas da Forja a que você foi convidado e ainda não venceu
+function carPropExtra(){const p=CAR.prop;if(!p)return;const have=new Set(p.lista.map(o=>o.id));let add=0;const eu=CAR.eu.r,rr=id=>(CAR.lutadores.find(f=>f.id==id)||{r:0}).r;
+ CAR.lutadores.forEach(f=>{const c=CAR_ROSTER_ID[f.id];if(c&&c.forja&&FORJA_CONVITE[f.id]&&!have.has(f.id)&&!CAR.cartel.some(x=>x.op&&x.op.id==f.id&&x.res=='V')){p.lista.push({id:f.id,premio:carPropPremio(f.r,eu),st:'p'});have.add(f.id);add++}});
+ if(p.lista.length<PROP_TOT){const pool=CAR.lutadores.filter(f=>forjaOk(f)&&!have.has(f.id)&&!(CAR_ROSTER_ID[f.id].forja)).sort((a,b)=>Math.abs(a.r-eu)-Math.abs(b.r-eu)).slice(0,14);
+  while(p.lista.length<PROP_TOT&&pool.length){const f=pool.splice(Math.floor(Math.random()*pool.length),1)[0];p.lista.push({id:f.id,premio:carPropPremio(f.r,eu),st:'p'});add++}}
+ if(add){p.lista.sort((a,b)=>rr(a.id)-rr(b.id));carSalvar()}}
 function forjaDevida(){return CAR.lutadores.filter(f=>{const c=CAR_ROSTER_ID[f.id];return c&&c.forja&&FORJA_CONVITE[f.id]&&!CAR.cartel.some(x=>x.op&&x.op.id==f.id&&x.res=='V')}).sort((a,b)=>a.r-b.r)[0]}
 function forjaFeitas(){return['forja1','forja2','forja3'].filter(id=>CAR.cartel.some(x=>x.op&&x.op.id==id&&x.res=='V')).length}
 function carPropOk(){if(!CAR||!CAR.prop)return;if(CAR.prop.sim!==CAR.sim||CAR.prop.lista.length<PROP_N){carPropGera();carSalvar()}
  const p=CAR.prop;if(!p.marcada&&!p.lista.some(o=>CAR_ROSTER_ID[o.id].forja)){const fd=forjaDevida(),i=p.lista.findIndex(o=>o.st=='p'&&!CAR_ROSTER_ID[o.id].forja);   // convite da Forja: troca uma proposta pendente pela luta da Arena Forja
-  if(fd&&i>=0){p.lista[i]={id:fd.id,premio:carPropPremio(fd.r,CAR.eu.r),st:'p'};const rr=id=>(CAR.lutadores.find(f=>f.id==id)||{r:0}).r;p.lista.sort((a,b)=>rr(a.id)-rr(b.id));carSalvar()}}}
+  if(fd&&i>=0){p.lista[i]={id:fd.id,premio:carPropPremio(fd.r,CAR.eu.r),st:'p'};const rr=id=>(CAR.lutadores.find(f=>f.id==id)||{r:0}).r;p.lista.sort((a,b)=>rr(a.id)-rr(b.id));carSalvar()}}
+ carPropExtra()}
 function CARPL(q,cnt){q=q&&typeof q=='object'?q:{};
- const li=Array.isArray(q.lista)?q.lista.filter(o=>o&&CAR_ROSTER_ID[o.id]).slice(0,PROP_N).map(o=>({id:o.id,premio:Math.round(carNum(o.premio,0,1e7,0)),st:o.st=='a'||o.st=='r'?o.st:'p'})):[],
+ const li=Array.isArray(q.lista)?q.lista.filter(o=>o&&CAR_ROSTER_ID[o.id]).slice(0,PROP_TOT).map(o=>({id:o.id,premio:Math.round(carNum(o.premio,0,1e7,0)),st:o.st=='a'||o.st=='r'?o.st:'p'})):[],
   m=q.marcada&&typeof q.marcada=='object'&&CAR_ROSTER_ID[q.marcada.id]?{id:q.marcada.id,premio:Math.round(carNum(q.marcada.premio,0,1e7,0)),dia:carDiaOk(q.marcada.dia)?q.marcada.dia:carHoje(),est:Number.isInteger(q.marcada.est)&&q.marcada.est>=0&&q.marcada.est<4?q.marcada.est:-1}:null;
  return{sim:q.sim==null?-1:cnt(q.sim),lista:li,marcada:m,rec:cnt(q.rec),lut:cnt(q.lut),recHoje:Math.min(PROP_REC_MAX,cnt(q.recHoje))}}
 function propAcao(i,ac){const p=CAR.prop,o=p.lista[i];if(!o||o.st!='p'||p.marcada)return;if(ac=='r'&&p.recHoje>=PROP_REC_MAX)return;
@@ -5264,7 +5271,7 @@ function celRetratoV1(g,cx,cy,r,id){const h=carHash(id+'#foto'),pl=['#f2cfae','#
  g.restore();g.strokeStyle='#2c3a58';g.lineWidth=3;g.beginPath();g.arc(cx,cy,r,0,TAU);g.stroke()}
 // ---------- tela do celular: PROPOSTAS ----------
 const PROP_FAMA=['Sem fama de fujão','Meio fujão','Fujão','Fujão de carteirinha'];
-function celPropCard(y,h){const g=CEL.cx,p=CAR.prop,np=p.marcada?0:p.lista.filter(o=>o.st=='p').length;celB(36,y,440,h,()=>celGo('prop'),{k:'appprop',r:30});
+function celPropCard(y,h){const g=CEL.cx,p=CAR.prop,np=p.marcada?0:p.lista.filter(o=>o.st=='p').length;celB(36,y,440,h,()=>{CEL.pg=0;celGo('prop')},{k:'appprop',r:30});
  g.save();g.lineWidth=6;g.lineCap='round';g.lineJoin='round';g.strokeStyle=CELC.ac;const cx=106,cy=y+h/2;celRR(g,cx-26,cy-34,52,68,8);g.stroke();g.beginPath();g.moveTo(cx-13,cy+2);g.lineTo(cx-3,cy+13);g.lineTo(cx+15,cy-12);g.stroke();g.restore();
  celT('PROPOSTAS',146,y+h/2-4,30,CELC.tx,'left','bold',270);celT(p.marcada?(propEspera()>0?'descansando '+propFmtEsp(propEspera())+' · ':'')+'luta marcada: '+carNome(p.marcada.id):np?np+(np==1?' luta esperando':' lutas esperando'):'sem propostas agora',146,y+h/2+30,21,CELC.sub,'left','normal',290);
  if(np||p.marcada){g.fillStyle=p.marcada?CELC.ouro:CELC.D;g.beginPath();g.arc(450,y+26,20,0,TAU);g.fill();celT(p.marcada?'!':String(np),450,y+35,26,p.marcada?'#1a1400':'#fff','center','bold')}}
@@ -5276,12 +5283,13 @@ function celProp(){const g=CEL.cx,p=CAR.prop;carPropOk();celHdr('PROPOSTAS',()=>
  let y=226;celRest(24,y,464,66,false);y+=74;
  if(p.marcada){const m=p.marcada;celRR(g,24,y,464,88,18);g.fillStyle='#2a2410';g.fill();g.strokeStyle=CELC.ouro;g.lineWidth=3;g.stroke();
   celT('LUTA MARCADA',40,y+30,22,CELC.ouro,'left','bold',420);celT('vs '+carNome(m.id)+' · '+carFmt(m.premio),40,y+60,26,CELC.tx,'left','bold',430);celT('Local: '+cityEstNome(m)+' · siga o GPS do carro.',40,y+80,17,CELC.sub,'left','normal',430);y+=100}
- const ch=Math.floor((1000-y-16)/PROP_N)-6,cf=k=>CEL.conf&&CEL.conf.k==k&&performance.now()<CEL.conf.t;
- p.lista.forEach((o,i)=>{const yy=y+i*(ch+8),c=CAR_ROSTER_ID[o.id],f=RK.find(q=>q.id==o.id),st=o.st,lock=!!p.marcada&&st=='p';
+ const pgs=Math.max(1,Math.ceil(p.lista.length/PROP_N)),pg=Math.max(0,Math.min(CEL.pg||0,pgs-1)),navY=1000-60,ch=Math.floor(((pgs>1?navY-8:1000-16)-y)/PROP_N)-6,cf=k=>CEL.conf&&CEL.conf.k==k&&performance.now()<CEL.conf.t;
+ if(pgs>1){celB(40,navY,200,48,()=>{CEL.pg=Math.max(0,pg-1);CEL.conf=null;CEL.dirty=true},{k:'ppg0',r:16,t:'ANTERIOR',sz:22,dis:pg==0,c:'#1f2a44',hc:'#2b3a5e',ln:CELC.ac});celB(272,navY,200,48,()=>{CEL.pg=Math.min(pgs-1,pg+1);CEL.conf=null;CEL.dirty=true},{k:'ppg1',r:16,t:'PRÓXIMA '+(pg+1)+'/'+pgs,sz:22,dis:pg>=pgs-1,c:'#1f2a44',hc:'#2b3a5e',ln:CELC.ac})}
+ p.lista.forEach((o,i)=>{if(i<pg*PROP_N||i>=(pg+1)*PROP_N)return;const yy=y+(i-pg*PROP_N)*(ch+8),c=CAR_ROSTER_ID[o.id],f=RK.find(q=>q.id==o.id),st=o.st,lock=!!p.marcada&&st=='p';
   celRR(g,24,yy,464,ch,20);g.fillStyle=st=='r'?'#10151f':(i%2?CELC.card:'#10192a');g.fill();if(st=='a'){g.strokeStyle=CELC.ac;g.lineWidth=3;g.stroke()}
   g.save();g.globalAlpha=st=='r'?.45:1;celRetrato(g,92,yy+42,36,o.id);
   celT(c.nome,150,yy+28,26,CELC.tx,'left','bold',330);
-  celT('#'+f.pos+' · '+f.v+'V '+f.d+'D · '+(i==0?'igual a você':i==1?'duro':i==2?'perigoso':'chefão'),150,yy+52,20,CELC.sub,'left','normal',330);celT('GANHA '+carFmt(o.premio)+(c.forja?' +🔥':''),150,yy+78,24,CELC.ouro,'left','bold',330);g.restore();
+  celT('#'+f.pos+' · '+f.v+'V '+f.d+'D · '+(i%PROP_N==0?'igual a você':i%PROP_N==1?'duro':i%PROP_N==2?'perigoso':'chefão'),150,yy+52,20,CELC.sub,'left','normal',330);celT('GANHA '+carFmt(o.premio)+(c.forja?' +🔥':''),150,yy+78,24,CELC.ouro,'left','bold',330);g.restore();
   const by=yy+ch-54;
   if(st=='a')celT('ACEITA',256,by+40,28,CELC.ac,'center','bold');else if(st=='r')celT('RECUSADA',256,by+40,26,CELC.sub,'center','bold');
   else{const sem=p.recHoje>=PROP_REC_MAX;
@@ -6056,7 +6064,7 @@ function ctSolidCar(x,z){const hw=CT.RW/2;if(z<CT.Z0-hw)return !ctHomeFree(x,z,t
  const fx=((x-CT.X0)%CT.P+CT.P)%CT.P,fz=((z-CT.Z0)%CT.P+CT.P)%CT.P;
  if(!(fx<hw||fx>CT.P-hw||fz<hw||fz>CT.P-hw)){const e=ctEstAt(x,z);if(!(e&&x>e.lx0&&x<e.lx1&&z>e.lz0&&z<e.lz1))return true}
  return ctCircHit(x,z,0)||trfSolid(x,z)}
-function ctEstSolid(e,x,z,r){if(e.k<2)return x>e.cx-e.W/2-r&&x<e.cx+e.W/2+r&&z>e.zf-r&&z<e.zb+r;
+function ctEstSolid(e,x,z,r){/* Briga de Rua, Metropolitana e Forja = prédio retangular (só a Mega Arena é oval com corredor de entrada) */if(e.k!=2)return x>e.cx-e.W/2-r&&x<e.cx+e.W/2+r&&z>e.zf-r&&z<e.zb+r;
  const a=e.W/2+r,b=e.D/2+r,zc=e.zf+e.D/2;return ((x-e.cx)/a)**2+((z-zc)/b)**2<1||(Math.abs(x-e.cx)<12+r&&z>e.zf-9-r&&z<e.zf+3)}
 function ctBldHit(x,z,r,wk){const bi=Math.floor((x-CT.X0)/CT.P),bj=Math.floor((z-CT.Z0)/CT.P);if(bi<0||bj<0||bi>=CT.N||bj>=CT.N)return false;if(wk?(casaWalkHit(x,z,r)||lojaWalkHit(x,z,r)||postoWalkHit(x,z,r)||delHit(x,z,r)):(casaHit(x,z,r)||lojaHit(x,z,r)||delHit(x,z,r)))return true;const e=ctEstAt(x,z);if(e)return ctEstSolid(e,x,z,r);
  for(const b of ctBlk(bi,bj).B)if(x>b.x0-r&&x<b.x1+r&&z>b.z0-r&&z<b.z1+r)return true;return false}
