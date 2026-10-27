@@ -1332,7 +1332,7 @@ class Enemy{
  reset(){this.ko0();this.wind=0;this.hpH=100;this.hpB=100;this.bal=1;this.s=1;this.gt=0;this.gu=0;this.gtu=0;this.atk=null;this.yo=0;this.fe=null;this.nextAtk=2.5;this.gl=0;this.wr.L=this.wr.R=this.rl.L=this.rl.R=0;this.nog=this.dz=this.sg=0;this.mnt=false;this.kt=this.hn=0;this.tk=null;this.nextTk=null;this.gr=null;this.fdb=null;this.rvT=null;this.rvF=0;this.cqs=null;this.ms=null;this.gh=null;this.bg=0;this.wH=this.wB=0;this.gm=null;this.cmb=0;this.cf=false;this.pn=null;for(const p of this.parts)p.reset();if(this.hair)this.hair.reset();this.clearBlood()}
  respawn(){this.atk=null;this.wind=0;this.bal=Math.max(this.bal,.6);this.s=1;this.gt=0;this.gu=0;this.gtu=0;this.fe=null;this.cqs=null;this.gh=null;this.wr.L=this.wr.R=this.rl.L=this.rl.R=0;this.nog=this.dz=0;for(const p of this.parts)p.reset();if(this.hair)this.hair.reset()}   // corpo perdido (fora da arena/NaN): recoloca em pé SEM mexer em vida, vigor, knockdowns ou rounds
  hit(p,v,spd,k=1,z){if(this.st=='fin'){return 0}   // nocauteado: soco não move o corpo (socar o chão não faz ele deslizar)
-  const hd=p.name=='head',bd=p.name=='chest'||p.name=='abdomen',pw=punchPower(spd),pn=pw/3,m=z?z.m:1,dwn=hd?0:Math.min(1,Math.max(0,-v.y)/(Math.hypot(v.x,v.y,v.z)||1)*1.6),dmg=(hd?15:bd?7:2.5)*pw*m*k/DIF.hp*carDanoMul(),pc=Math.min(pw,1.5);
+  const hd=p.name=='head',bd=p.name=='chest'||p.name=='abdomen',pw=punchPower(spd),pn=pw/3,m=z?z.m:1,dwn=hd?0:Math.min(1,Math.max(0,-v.y)/(Math.hypot(v.x,v.y,v.z)||1)*1.6),dmg=(hd?15:bd?7:2.5)*pw*m*k/(DIF.hp*carInimHp())*carDanoMul(),pc=Math.min(pw,1.5);
   if(hd){const h0=this.hpH;this.hpH=Math.max(0,this.hpH-dmg);this.injH+=(h0-this.hpH)*.1;this.mnH=Math.min(this.mnH,this.hpH)}else{const b0=this.hpB;this.hpB=Math.max(0,this.hpB-dmg);this.injB+=(b0-this.hpB)*.1;this.mnB=Math.min(this.mnB,this.hpB);if(bd)this.stM=Math.max(5,this.stM-(b0-this.hpB)*.6)}   // soco na barriga reduz o vigor máximo
   if(bd&&k>=.5&&pw>.03&&this.st=='fight')this.bg=Math.min(2.4,Math.max(this.bg||0,.9)+.35),this.hc=Math.min(1.3,(this.hc||0)*.5+.12+.6*pc);   // apanhando na barriga: baixa a guarda lá por um tempo
   this.bal=Math.max(0,this.bal-(pw>=4.52?Math.min(1.5,.6+(pw-4.52)/.8):0)*(hd?.16:bd?.1:.04)*k*(1-.9*dwn));   // soco de cima pra baixo quase não desequilibra; só desequilibra com soco >= 15 m/s (pw 4.52)
@@ -1646,7 +1646,7 @@ class Enemy{
      if(ex>.8&&dE<.26){ikA.copy(tgp).sub(hp2);const l2=ikA.lengthSq()||1e-6,u=cl(ikB.copy(ph.pos).sub(hp2).dot(ikA)/l2,0,1);
       if(ikB.copy(hp2).addScaledVector(ikA,u).distanceTo(ph.pos)<.16){blk=true;break}}} // mão do jogador no caminho entre a luva e o rosto
     if(blk){this.cancelPunch();clashFx(hp2)}
-    else if(ex>.8&&dE<.19){a.hit=1;hurt((pk.dmg+h.v.length()*1.2)*DIF.dm*(gnd?.7:1),!a.bd,hp2)}}}
+    else if(ex>.8&&dE<.19){a.hit=1;hurt((pk.dmg+h.v.length()*1.2)*DIF.dm*carInimDm()*(gnd?.7:1),!a.bd,hp2)}}}
   this.yo=(this.yo||0)+(yoT-(this.yo||0))*Math.min(1,dt*(a?14:10));
  }
  clearBlood(){if(this.bw)bloodClear(this)}
@@ -1828,6 +1828,10 @@ const MOB={gas:0,brk:0,st:0};
  tapB('dn','ENTRAR\nNO CARRO','background:rgba(40,160,80,.6)',()=>{if(!DRV.on)drvEnter()});
  tapB('dx','SAIR\nDO CARRO','background:rgba(200,60,50,.6)',()=>{if(Math.abs(DRV.v)<.5&&!DRV.wait)drvSair()})})();
 $('brs').onclick=reset;
+// MODO CARREIRA: todos os inimigos têm +40% de HP (dano que eles recebem ÷1,4) e causam -40% de dano em você (×0,6). Fora da carreira (CAR nulo) nada muda.
+function carInimHp(){try{return CAR&&MODE=='fight'?1.4:1}catch(e){return 1}}
+function carInimDm(){try{return CAR&&MODE=='fight'?.6:1}catch(e){return 1}}
+function carSemBarras(){try{return !!CAR}catch(e){return false}}   // na carreira o jogador não vê vida/vigor do rival
 function setDiff(i){DIFI=i;DIF=DIFFS[i];const f=1+(DIF.ag-1)*.15;for(const k in PUNCH){const q=PUNCH[k];if(!q.b)q.b={w:q.w,s:q.s,h:q.h,r:q.r};q.w=q.b.w/f;q.s=q.b.s/f;q.h=q.b.h;q.r=q.b.r/f}   // socos mais rápidos nos níveis altos
  $('bdf').textContent='Dificuldade: '+DIF.n;reset()}
 $('bdf').onclick=()=>setDiff((DIFI+1)%5);
@@ -2329,8 +2333,8 @@ let hudAcc=0;const hudV=new THREE.Vector3();
 function updHud(dt){const e=enemy,hp=e.P.head.p;hudM.position.set(hp.x,hp.y+.42,hp.z);cam.getWorldPosition(hudV);hudM.lookAt(hudV);
  hudAcc-=dt;if(hudAcc>0)return;hudAcc=.1;const x=hudX;x.clearRect(0,0,256,120);
  const bar=(y,fr,mx,col)=>{x.fillStyle='#000b';x.fillRect(8,y,240,16);x.fillStyle='#5a1010';x.fillRect(9+238*mx,y+1,238*(1-mx),14);x.fillStyle=col;x.fillRect(9,y+1,238*Math.max(0,fr),14)};
- bar(6,e.hp/100,1,'#d33');bar(28,e.stam/100,e.stM/100,e.stam<25?'#e8a020':'#3c3');
- x.fillStyle='#fff';x.font='bold 13px sans-serif';x.fillText('VIDA',12,19);x.fillText('VIGOR',12,41);x.fillText('R'+RD.n,214,64);x.font='bold 11px sans-serif';x.fillText(DIF.n,160,64);x.font='bold 13px sans-serif';
+ const sb=carSemBarras();if(!sb){bar(6,e.hp/100,1,'#d33');bar(28,e.stam/100,e.stM/100,e.stam<25?'#e8a020':'#3c3')}
+ x.fillStyle='#fff';x.font='bold 13px sans-serif';if(!sb){x.fillText('VIDA',12,19);x.fillText('VIGOR',12,41)}x.fillText('R'+RD.n,214,64);x.font='bold 11px sans-serif';x.fillText(DIF.n,160,64);x.font='bold 13px sans-serif';
  if(e.st=='kd'||e.st=='cd'){x.fillStyle='#ff3b2a';x.font='bold 24px sans-serif';x.fillText('KNOCKDOWN '+Math.ceil(e.dt2),12,84)}
  if(e.mnt&&e.st=='fight'){x.fillStyle='#ffd23c';x.font='bold 22px sans-serif';x.fillText('MONTADO',12,84)}
  if(RD.ph=='ready'){x.fillStyle='#ffd23c';x.font='bold 24px sans-serif';x.fillText('COMEÇA EM '+Math.max(1,Math.ceil(RD.cd)),12,84)}
