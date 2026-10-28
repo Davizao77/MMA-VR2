@@ -4526,7 +4526,11 @@ function celMusica(){const g=CEL.cx,n=MUSICAS.length;celHdr('MÚSICA',()=>celGo(
 const MUSICAS=[   // arquivos na RAIZ do GitHub Pages (mesma pasta do index.html)
  {nome:'Khabib Training Mentality X FURY',arq:'Khabib Training Mentality X FURY(MP3_160K).mp3'},
  {nome:'Like That (Guitar Remix)',arq:'Like That (Guitar Remix) - DinoA1_ Metro Boomin_ Future_ Kendrick Lamar(MP3_160K).mp3'},
- {nome:'Melly Mike - Young Black & Rich',arq:'Melly Mike - Young Black _ Rich (Official Music Video)(MP3_160K).mp3'}];
+ {nome:'Melly Mike - Young Black & Rich',arq:'Melly Mike - Young Black _ Rich (Official Music Video)(MP3_160K).mp3'},
+ {nome:'100 NEUROSE - Quando você senta (Cabeludo RLK)',arq:'100 NEUROSE_ QUANDO VOCÊ SENTA O MUNDO PARA x BEAT VEM VEM ((CABELUDORLK))(MP3_160K).mp3'},
+ {nome:'Tipo Kisame e Zabuza ft. TAUZ (Naruto)',arq:'TIPO KISAME e ZABUZA  ▬ι══ح ft. TAUZ  _ (Naruto) _ MHRAP(MP3_160K)_2.mp3'},
+ {nome:'POCE Treino - Akhmedov, Kobe Mane, Sher Hugz',arq:'POCE TREINO - Akhmedov_ Kobe Mane_ Sher Hugz(MP3_160K).mp3'},
+ {nome:'Eu Adoro Sacanagem x Maldita da Ex (Slowed)',arq:'EU ADORO SACANAGEM x MALDITA DA EX (Slowed   Reverb) _ TikTok Remix(MP3_160K).mp3'}];
 const MUS={i:0,quer:false,vol:.6,au:null,t:0,loop:false,err:false};
 function musAudio(){if(!MUS.au){const a=new Audio();a.preload='auto';a.volume=MUS.vol;a.loop=MUS.loop;a.addEventListener('ended',()=>musProx(1,true));a.addEventListener('error',()=>{MUS.quer=false;MUS.err=true;CEL.dirty=true});MUS.au=a}return MUS.au}
 function musSel(){const a=musAudio(),m=MUSICAS[MUS.i];if(m&&m.arq){MUS.err=false;a.src=encodeURIComponent(m.arq);a.load()}}
@@ -5707,7 +5711,7 @@ function drvInBuild(c){mirInit();const S=drvSpec(c),W=S.W,G=new THREE.Group(),ds
  const ledM=new THREE.MeshBasicMaterial({color:0x39ff6a}),led=new THREE.Mesh(xdG,ledM);led.position.set(-.06,.03,.009);xg.add(led);
  const lk=cdCanvas(128,40),lq=lk.x;lq.font='bold 28px sans-serif';lq.textAlign='center';lq.fillStyle='#fff';lq.shadowColor='#000';lq.shadowBlur=6;lq.fillText('SAIR',64,30);lk.t.needsUpdate=true;
  const lbM=new THREE.MeshBasicMaterial({map:lk.t,transparent:true,opacity:0,depthWrite:false,depthTest:false,side:THREE.DoubleSide}),lb=new THREE.Mesh(new THREE.PlaneGeometry(.1,.031),lbM);lb.position.set(0,.06,.012);lb.renderOrder=994;xg.add(lb);ds.push(ledM,lbM,lb.geometry,lk.t);
- return{G,S,wp,sp,ck,cp,cpm,ds,mf,gp:gpsMk(G,S,dn,dTop,ds),xh:{xg,xp,ledM,lbM,a:0,ok:null,hv:false}}}
+ return{G,S,wp,sp,ck,cp,cpm,ds,mf,gp:gpsMk(G,S,dn,dTop,ds),mp:musMk(G,S,dn,dTop,ds),xh:{xg,xp,ledM,lbM,a:0,ok:null,hv:false}}}
 function drvInFree(I){if(!I)return;I.G.parent&&I.G.parent.remove(I.G);I.ds.forEach(q=>q.dispose&&q.dispose())}
 // ---------- instrumentos ----------
 function drvCkBg(c){const k=document.createElement('canvas');k.width=640;k.height=224;const g=k.getContext('2d'),sn=c.snd,cls=c.ano<1990,sp=!!c.g.sp||c.g.a=='coupe',ac='#'+c.cor.toString(16).padStart(6,'0'),fc=cls?'#16140f':'#090b10',tc=cls?'#eadfc4':'#e3ebf7',st=c.vmax>250?50:20,top=Math.ceil(c.vmax*1.05/st)*st,rm=Math.ceil(sn.red/1000)*1000,A0=Math.PI*.75,SW=Math.PI*1.5;
@@ -5827,7 +5831,7 @@ function mobCarUI(){const b=document.body.classList,vr=VRON||R.xr.isPresenting,d
  b.toggle('drvon',dr);b.toggle('drvnear',nr);b.toggle('drvexit',dr&&Math.abs(DRV.v)<.5&&!DRV.wait);if(!dr)MOB.gas=MOB.brk=MOB.st=0}
 function drvTick(dt,now){mobCarUI();if(!CAR)return;drvGateMk();GT.m.visible=false;drvPassTick(dt);
  if(!DRV.on){drvBtn(dt,false);return}
- const I=DRV.I;if(!I)return;if(DRV.ph=='drive'){drvWheelTick(dt);drvExitTick(dt);gpsTick(dt);DRV.tm+=dt}else if(DRV.bp)DRV.bp.m.visible=false;
+ const I=DRV.I;if(!I)return;if(DRV.ph=='drive'){drvWheelTick(dt);drvExitTick(dt);gpsTick(dt);musPanTick(dt);DRV.tm+=dt}else if(DRV.bp)DRV.bp.m.visible=false;
  // cartões de passageiros (só parado e sentado, e só dentro da fazenda: some quando o carro sai pela estrada)
  const emCasa=DRV.G.position.z<50;I.cpm.visible=emCasa;
  if(emCasa&&DRV.ph=='drive'&&Math.abs(DRV.v)<.5){I.cpm.updateMatrixWorld(true);DRV_NPC.forEach((id,i)=>{let on=false;for(const h of hands){I.cpm.worldToLocal(DV.copy(h.pos));const x0=((14+i*252)/512-.5)*.36,x1=((14+i*252+232)/512-.5)*.36;if(DV.x>x0&&DV.x<x1&&Math.abs(DV.y)<.065&&Math.abs(DV.z)<.07)on=true}
@@ -7186,6 +7190,24 @@ function gpsTick(dt){const I=DRV.I,P=I&&I.gp;if(!P)return;P.grp.updateMatrixWorl
  for(const b of GPS.btn){const k=b.k;GPS.hold[k]=hit==k?Math.min(.6,(GPS.hold[k]||0)+dt):Math.max(0,(GPS.hold[k]||0)-dt*3);
   if(GPS.hold[k]>=.6){GPS.hold[k]=0;snd(520,.25);if(k=='z-')GPS.zoom=Math.min(3,GPS.zoom+1);else if(k=='z+')GPS.zoom=Math.max(0,GPS.zoom-1);else if(k=='px')GPS.posto=!GPS.posto;else GPS.ov=!GPS.ov;GPS.t=0}}
  GPS.t-=dt;if(GPS.t<=0){GPS.t=.12;gpsDraw()}}
+// ---------- APP DE MÚSICA no painel, ao lado do GPS (toque e segure ~0,45 s no botão; usa as mesmas faixas/volume do app do celular) ----------
+const MPN={hold:{},t:0,btn:[{x:14,y:290,w:128,h:78,k:'pv'},{x:154,y:290,w:332,h:78,k:'pl'},{x:498,y:290,w:128,h:78,k:'nx'},{x:14,y:378,w:128,h:36,k:'v-'},{x:154,y:378,w:332,h:36,k:'lp'},{x:498,y:378,w:128,h:36,k:'v+'}]};
+function musMk(G,S,dn,dTop,ds){const cv=cdCanvas(640,420),W=.27,H=.177,grp=new THREE.Group();grp.position.set(dn-.08,dTop+.13,.29);grp.rotation.y=-Math.PI/2-.45;G.add(grp);
+ const fm=new THREE.MeshStandardMaterial({color:0x101114,roughness:.5}),fg=new THREE.BoxGeometry(W+.025,H+.025,.03),sg=new THREE.PlaneGeometry(W,H),sm=new THREE.MeshBasicMaterial({map:cv.t,fog:false}),st=new THREE.CylinderGeometry(.012,.016,.2,8);
+ const fr=new THREE.Mesh(fg,fm);fr.position.z=-.017;grp.add(fr);const sc=new THREE.Mesh(sg,sm);sc.position.z=.001;grp.add(sc);const sk=new THREE.Mesh(st,fm);sk.position.set(0,-H/2-.09,-.03);grp.add(sk);ds.push(fg,sg,sm,st,fm,cv.t);return{grp,cv,sc,W,H}}
+function musPanDraw(){const I=DRV.I,P=I&&I.mp;if(!P)return;const g=P.cv.x,n=MUSICAS.length,m=n?MUSICAS[MUS.i]:null;
+ g.fillStyle='#0b0f18';g.fillRect(0,0,640,420);g.fillStyle='#39ff6a';g.font='bold 30px sans-serif';g.textAlign='center';g.fillText('MÚSICA',320,44);
+ g.fillStyle='#fff';let fs=34,nm=m?m.nome:'Sem faixas';g.font='bold '+fs+'px sans-serif';while(g.measureText(nm).width>600&&fs>16){fs-=2;g.font='bold '+fs+'px sans-serif'}g.fillText(nm,320,130);
+ g.fillStyle='#9aa7c2';g.font='24px sans-serif';g.fillText(n?(MUS.i+1)+' de '+n+(MUS.err?' · arquivo não encontrado':MUS.quer?' · tocando':' · pausada'):'',320,176);
+ g.fillStyle='#9aa7c2';g.font='22px sans-serif';g.fillText('Volume '+Math.round(MUS.vol*100)+'%',320,236);
+ const lb={pv:'◀◀',pl:MUS.quer?'❚❚  PAUSAR':'▶  TOCAR',nx:'▶▶','v-':'VOL −','v+':'VOL +',lp:'REPETIR: '+(MUS.loop?'SIM':'NÃO')};
+ for(const b of MPN.btn){const f=(MPN.hold[b.k]||0)/.45;g.fillStyle=f>0?'#1f7a3a':'#1b2233';g.fillRect(b.x,b.y,b.w,b.h);g.strokeStyle=f>0?'#39ff6a':'#4a5570';g.lineWidth=3;g.strokeRect(b.x,b.y,b.w,b.h);if(f>0){g.fillStyle='#39ff6a';g.fillRect(b.x,b.y+b.h-6,b.w*Math.min(1,f),6)}g.fillStyle='#fff';g.font='bold '+(b.h>50?34:20)+'px sans-serif';g.textAlign='center';g.fillText(lb[b.k],b.x+b.w/2,b.y+b.h/2+(b.h>50?12:7))}
+ P.cv.t.needsUpdate=true}
+function musPanTick(dt){const I=DRV.I,P=I&&I.mp;if(!P)return;P.grp.updateMatrixWorld(true);let hit=null;
+ for(const h of hands){P.sc.worldToLocal(DV.copy(h.pos));if(Math.abs(DV.z)>.1)continue;const px=(DV.x/P.W+.5)*640,py=(.5-DV.y/P.H)*420;for(const b of MPN.btn)if(px>b.x&&px<b.x+b.w&&py>b.y&&py<b.y+b.h)hit=b.k}
+ for(const b of MPN.btn){const k=b.k;MPN.hold[k]=hit==k?Math.min(.45,(MPN.hold[k]||0)+dt):Math.max(0,(MPN.hold[k]||0)-dt*3);
+  if(MPN.hold[k]>=.45){MPN.hold[k]=0;snd(520,.25);if(k=='pv')musProx(-1);else if(k=='nx')musProx(1);else if(k=='pl')musToggle();else if(k=='v-')musVol(-.1);else if(k=='v+')musVol(.1);else musLoopToggle();MPN.t=0}}
+ MPN.t-=dt;if(MPN.t<=0){MPN.t=.12;musPanDraw()}}
 // ======================= PARTE 12: COMBUSTÍVEL, PAINEL E POSTOS DE GASOLINA =======================
 // 4 postos fixos na cidade (ícone pequeno laranja no GPS e no mapa do celular; botão POSTO no GPS traça a rota até o mais próximo).
 // Tanque por carro (CAR.carros.comb), consumo por carro (COMB) e preço por posto (POSTOS). Sem gasolina o motor morre: vá a pé ao posto, PEGUE um galão (prateleira),
