@@ -73,7 +73,7 @@ body.car.drvon .mc.dg,body.car.drvnear .mc.dn,body.car.drvexit .mc.dx,body.car.f
 body.car.drvon .b:not(.mc){display:none}
 
 </style></head><body>
-<div id="top"><button id="bvr" style="display:none">Entrar em VR</button><button id="btg">Alvos: OFF</button><button id="bdf">Dificuldade: Fácil</button><button id="brs">Reiniciar</button><button id="bmn">Menu</button><button id="bts">Testes</button></div>
+<div id="top"><button id="bvr" style="display:none">Entrar em VR</button><button id="btg">Alvos: OFF</button><button id="bdf" style="display:none">Dificuldade: Fácil</button><button id="brs">Reiniciar</button><button id="bmn">Menu</button><button id="bts">Testes</button></div>
 <div id="menu"></div>
 <div id="msg">Carregando física…</div>
 <div id="err" style="position:fixed;left:6px;right:6px;bottom:6px;z-index:99;font:11px monospace;color:#ff8;background:#000c;white-space:pre-wrap;pointer-events:none;max-height:40%;overflow:auto"></div>
@@ -1217,7 +1217,7 @@ const DIFFS=[{n:'Super fácil',hp:.8,st:.7,ag:.6,dm:.7,bk:0},{n:'Fácil',hp:2.5,
 {n:'Boxe 3 Espelho',hp:18,st:3.8,ag:2.7,dm:2,bk:1,bd:.04,sq:3.8},
 {n:'Wrestling 1 Guindaste',hp:17,st:4.4,ag:2.7,dm:1,bk:0},
 {n:'Wrestling 2 Relâmpago',hp:16,st:4,ag:3.1,dm:1,bk:0},
-{n:'Wrestling 3 Âncora',hp:17,st:4.2,ag:2.8,dm:1,bk:0}];DIFFS.forEach(d=>{d.hp=Math.pow(d.hp,.85);d.st=Math.pow(d.st,.85);d.dm*=1.2;d.ag=d.ag<1?d.ag*1.15:d.ag*1.15+(d.ag-1)*.2});   // curva de vida/vigor mais suave; dano dos inimigos +20%; agressividade maior e crescendo com a dificuldade
+{n:'Wrestling 3 Âncora',hp:17,st:4.2,ag:2.8,dm:1,bk:0}];DIFFS.forEach(d=>{d.hp=Math.pow(d.hp,.85);d.st=Math.pow(d.st,.85);d.dm*=1.2;d.ag=d.ag<1?d.ag*1.15:d.ag*1.15+(d.ag-1)*.2});DIFFS.forEach(d=>{if(/^(Boxe|Wrestling)/.test(d.n)){d.hp*=1.35;d.st*=1.2;d.ag*=1.15;d.dm*=1.25}});   // curva de vida/vigor mais suave; dano dos inimigos +20%; agressividade maior e crescendo com a dificuldade
 let DIF=DIFFS[1],DIFI=1;   // hp = divisor do dano: .8 / 2.5 / 4.8 / 9.6 / 14 — Fácil é o padrão ao abrir (índice 1)
 const aimV=new THREE.Vector3(),aimV2=new THREE.Vector3(),gdV=new THREE.Vector3(),bdV=new THREE.Vector3(),ikZb=new THREE.Vector3(),ikPz=new THREE.Vector3();
 const wl={d:9,nx:0,nz:1};
@@ -1957,7 +1957,7 @@ function carInimDm(){try{return CAR&&MODE=='fight'?.78:1}catch(e){return 1}}   /
 function carSemBarras(){try{return !!CAR}catch(e){return false}}   // na carreira o jogador não vê vida/vigor do rival
 function setDiff(i){DIFI=i;DIF=DIFFS[i];const f=1+(DIF.ag-1)*.15;for(const k in PUNCH){const q=PUNCH[k];if(!q.b)q.b={w:q.w,s:q.s,h:q.h,r:q.r};q.w=q.b.w/f;q.s=q.b.s/f;q.h=q.b.h;q.r=q.b.r/f}   // socos mais rápidos nos níveis altos
  $('bdf').textContent='Dificuldade: '+DIF.n;reset()}
-$('bdf').onclick=()=>setDiff((DIFI+1)%5);
+
 function reset(){dbg('RESET <- '+((new Error().stack||'').split('\n')[2]||'?').trim().slice(0,60));hands.forEach(h=>h.rel());enemy.reset();ball.reset();PL.fd=false;PL.lock=0;PL.gT=0;PL.gup=0;PL.inj=0;PL.hp=plMax();endT=0;endShown=false;endB.visible=false;padGo.label='CONTINUAR';padQuit.label='DESISTIR';pL.fill(0);rdReset();$('msg').textContent='';if(MODE!='fight'){RD.ph=MODE;RD.fl=0;if(MODE=='train')trainReset()}if(CARHK)CARHK.ini()}
 let endT=0;
 
@@ -4221,6 +4221,8 @@ let posT=0;function carPosTick(dt,force){if(!CAR||MODE!='car'||DRV.on||PRI.on||N
  carSalvar()}
 addEventListener('pagehide',()=>carPosTick(0,true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)try{carPosTick(0,true)}catch(e){}});
+// grava onde o carro está AGORA (antes de entrar no sparring/luta da academia): o salvamento normal só roda a cada 3 s e o carro voltava pro pátio
+function carFixa(){try{if(CAR&&CARRO.g&&!DRV.on&&isFinite(CARRO.x)&&isFinite(CARRO.z)){CAR.carp={x:Math.round(CARRO.x*100)/100,z:Math.round(CARRO.z*100)/100,yaw:Math.round(CARRO.yaw*100)/100};carSalvar()}}catch(e){}}
 function carModel(){const vr=R.xr.isPresenting,m=[],L=[];
  if(CARMSG)L.push(CARMSG);
  if(CARAVISO)L.push(CARAVISO);
@@ -4685,6 +4687,7 @@ function mesaCol(){if(!MESA.built)return;CEL.a.set(rig.position.x,.5,rig.positio
 // ---------- celular: pegar, soltar (cai), tocar na tela ----------
 function celularTick(dt,now){if(!CEL.built)return;
  try{if(CAR&&CAR.celp&&!CEL._rp&&CEL.g&&!CEL.held){CEL._rp=1;const q=CAR.celp;if(q.b||R.xr.isPresenting){CEL.mode='pocket';CEL.g.visible=false;CEL.held=null;CEL.vel.set(0,0,0)}else{CEL.g.position.set(q.x,q.y,q.z);CEL.g.visible=true;CEL.mode='flat';if(CEL.flatQ)CEL.g.quaternion.copy(CEL.flatQ)}}}catch(e){}   // restaura o celular onde foi largado
+ if(R.xr.isPresenting&&CEL.mode=='stand'&&!CEL.held){CEL.mode='pocket';CEL.vel.set(0,0,0)}   // save antigo (sem posição salva) ou carreira aberta antes do VR: no óculos o celular nunca fica no suporte, vai pro bolso
  mesaCol();cam.getWorldPosition(CEL.eye);const g=CEL.g;
  CEL.sc+=(celScAlvo()-CEL.sc)*Math.min(1,dt*8);if(Math.abs(CEL.sc-celScAlvo())<.002)CEL.sc=celScAlvo();
  for(const h of hands){const gf=h.src?!!(h.sq&&h.sel):!!h.gr;   // pegar o celular = punho FECHADO (os dois botões); só o lateral é a mão apontando, que serve pra tocar na tela
@@ -5502,7 +5505,7 @@ function bxAviso(t1,t2,cor){if(!BXAV.m){const c=cdCanvas(512,160);BXAV.c=c;BXAV.
  const g=BXAV.c.x;g.clearRect(0,0,512,160);g.fillStyle='rgba(18,6,6,.9)';cdRR(g,0,0,512,160,24);g.fill();g.strokeStyle=cor;g.lineWidth=6;cdRR(g,3,3,506,154,22);g.stroke();g.textAlign='center';g.fillStyle=cor;g.font='bold 42px sans-serif';g.fillText(t1,256,70,480);g.fillStyle='#fff';g.font='bold 24px sans-serif';g.fillText(t2,256,118,480);BXAV.c.t.needsUpdate=true;BXAV.t=4.5;BXAV.m.visible=true}
 function bxAvTick(dt){if(!BXAV.m||BXAV.t<=0)return;BXAV.t-=dt;if(BXAV.t<=0){BXAV.m.visible=false;return}const e=cam.getWorldPosition(new THREE.Vector3()),f=cam.getWorldDirection(new THREE.Vector3());f.y=0;if(f.lengthSq()<1e-4)f.set(0,0,-1);f.normalize();
  BXAV.m.position.set(e.x+f.x*1.0,e.y-.08,e.z+f.z*1.0);BXAV.m.lookAt(e.x,BXAV.m.position.y,e.z);BXAV.m.material.opacity=Math.min(1,BXAV.t)}
-function bxTick(dt){bxAvTick(dt);if(BXW.on){if(MODE!='fight')bxMundo(false);else{farmG.visible=false;cityG.visible=true}}if(BXR.pend&&MODE=='fight'&&typeof enemy!='undefined'&&enemy&&enemy.P){BXR.pend=false;bxRegras(true);const a=BXA_ID[BXR.aluno];if(a){enemy.sty=a.sty;fkApply(a.id);dbg('ALUNO: '+a.nome+' ('+a.estilo+')')}}
+function bxTick(dt){bxAvTick(dt);if(BXW.on){if(MODE!='fight')bxMundo(false);else{farmG.visible=false;cityG.visible=false}}if(BXR.pend&&MODE=='fight'&&typeof enemy!='undefined'&&enemy&&enemy.P){BXR.pend=false;bxRegras(true);const a=BXA_ID[BXR.aluno];if(a){enemy.sty=a.sty;fkApply(a.id);dbg('ALUNO: '+a.nome+' ('+a.estilo+')')}}
  if(!BXR.on)return;if(MODE!='fight'||SP.on){bxRegras(false);return}
  for(let i=0;i<2;i++){const h=hands[i],g=SP.g[i];if(!g)continue;h.mesh.visible=false;g.visible=true;g.position.copy(h.mesh.position);g.quaternion.copy(h.mesh.quaternion)}   // luva vermelha segue a mão
  if(BXR.aluno&&CAR){cam.getWorldPosition(SP.eye);BXR.gd=spGuarda();   // guarda levantada? (pra contar lesão) e bônus de lobby a cada 30 s (um pouco mais que o Alexie)
@@ -5531,23 +5534,40 @@ function bxHurt(head){if(!BXR.on||!BXR.aluno||BXR.gd)return;const b=bxDat();b.pc
 // A luta de boxe NAO teleporta mais pro octogono: um ringue proprio (cordas, cantos, lona) e montado dentro da academia, no espaco livre do salao.
 // O centro desse ringue vira o ponto de origem da luta (a cidade inteira e deslocada em cityG.position, so durante a luta). Ao voltar, tudo volta ao lugar.
 const BXW={on:false,g:null,hid:null};
-function bxMundo(on){
- if(!on){if(BXW.hid){BXW.hid.visible=true;BXW.hid=null}if(BXW.g){cityG.remove(BXW.g);try{lojaLimpa(BXW.g)}catch(e){}BXW.g=null}cityG.position.set(0,0,0);BXW.on=false;return false}
- const L=lojaLots().boxe;if(!L||!L.g)return false;
- const h=VRON?2.1:3.4,rx=L.cx,rz=L.hz-1.95,fy=L.g.position.y+.12,G=new THREE.Group();
- const Lm=(c,o)=>new THREE.MeshLambertMaterial(Object.assign({color:c},o||{})),red=Lm('#b3121f'),navy=Lm('#1f4fa8'),wht=Lm('#f2f2f2',{emissive:0x202020}),steel=Lm('#8d949c');
+function roomMk(kind){   // cenario proprio da academia (sem torcida, sem cidade em volta); centro = origem da luta
+ const h=VRON?2.1:3.4,G=new THREE.Group(),S=9;
+ const Lm=(c,e)=>new THREE.MeshLambertMaterial({color:c,emissive:e===undefined?0x000000:e});
  const bx=(m,w,hh,d,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,hh,d),m);o.position.set(x,y,z);G.add(o);return o};
- bx(red,2*h+1.1,.006,2*h+1.1,0,.003,0);bx(navy,2*h,.006,2*h,0,.009,0);
- {const cv=cdCanvas(512,512),g=cv.x;g.fillStyle='#1f4fa8';g.fillRect(0,0,512,512);g.strokeStyle='#f2f2f2';g.lineWidth=10;g.strokeRect(14,14,484,484);g.fillStyle='#b3121f';g.beginPath();g.arc(256,256,150,0,Math.PI*2);g.fill();g.strokeStyle='#f2c14e';g.lineWidth=8;g.stroke();
-  g.fillStyle='#fff';g.textAlign='center';g.font='bold 74px sans-serif';g.fillText('BOXE',256,250,260);g.font='bold 34px sans-serif';g.fillStyle='#f2c14e';g.fillText('ACADEMIA',256,300,260);cv.t.needsUpdate=true;
-  const p=new THREE.Mesh(new THREE.PlaneGeometry(2*h,2*h),new THREE.MeshLambertMaterial({map:cv.t,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));p.rotation.x=-Math.PI/2;p.position.y=.0125;G.add(p)}
- for(const[sx,sz,cc]of[[-1,-1,'#b3121f'],[1,-1,'#1f4fa8'],[-1,1,'#f2f2f2'],[1,1,'#f2f2f2']]){bx(steel,.12,1.6,.12,sx*h,.8,sz*h);bx(Lm(cc),.24,.8,.24,sx*h,.78,sz*h);bx(steel,.3,.06,.3,sx*h,.03,sz*h)}
- [.45,.85,1.25].forEach((y,k)=>{const m=k==1?red:wht;bx(m,2*h,.045,.045,0,y,-h);bx(m,2*h,.045,.045,0,y,h);bx(m,.045,.045,2*h,-h,y,0);bx(m,.045,.045,2*h,h,y,0)});
- G.position.set(rx,fy,rz);cityG.add(G);BXW.g=G;
- try{const P=L.in&&L.in.userData.ppl;if(P){const d=P.find(a=>a.k=='des'&&a.id==BXR.aluno);if(d){d.g.visible=false;BXW.hid=d.g}}}catch(e){}   // o desafiante sai da fila e vai pro ringue
- cityG.position.set(-rx,-fy,-rz);BXW.on=true;return true}
-function bxFight(){if(!bxMundo(true)){startFightWalk();return}
- FRY=0;ENT.on=false;arenaOff();MODE='fight';setEnv('farm');cityG.visible=true;farmG.visible=false;AENV='gym';try{audEnv('gym')}catch(e){}trainG.visible=false;menuP.visible=false;enemyVis(true);spawn();reset();setBody()}   // igual startFightWalk, mas a luta acontece dentro da academia
+ const cyl=(m,r,hh,x,y,z)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,hh,48),m);o.position.set(x,y+hh/2,z);G.add(o);return o};
+ const wall=kind=='box'?'#20242c':'#1a2740',acc=kind=='box'?'#b3121f':'#1f4fa8';
+ bx(Lm('#2e2218',0x120c07),2*S,.1,2*S,0,-.05,0);   // piso
+ bx(Lm(wall,0x0b0c10),2*S,5,.3,0,2.5,-S);bx(Lm(wall,0x0b0c10),2*S,5,.3,0,2.5,S);bx(Lm(wall,0x0b0c10),.3,5,2*S,-S,2.5,0);bx(Lm(wall,0x0b0c10),.3,5,2*S,S,2.5,0);
+ bx(Lm('#14161b',0x050506),2*S,.2,2*S,0,5.1,0);   // teto
+ for(const z of[-S+.2,S-.2])bx(Lm(acc,0x300606),2*S,.35,.06,0,1.2,z>0?z-.1:z+.1);
+ for(const x of[-S+.2,S-.2])bx(Lm(acc,0x300606),.06,.35,2*S,x>0?x-.1:x+.1,1.2,0);
+ for(const[x,z]of[[-4,-4],[4,-4],[-4,4],[4,4],[0,0]])bx(new THREE.MeshBasicMaterial({color:0xfff2d6}),2.2,.06,.7,x,4.95,z);   // luminarias
+ {const cv=cdCanvas(768,160),g=cv.x;g.fillStyle=kind=='box'?'#7a0f18':'#0f2a5a';g.fillRect(0,0,768,160);g.strokeStyle='#f2c14e';g.lineWidth=6;g.strokeRect(8,8,752,144);g.fillStyle='#fff';g.textAlign='center';g.font='bold 54px sans-serif';g.fillText(kind=='box'?'ACADEMIA DE BOXE':'ACADEMIA DE WRESTLING',384,102,720);cv.t.needsUpdate=true;
+  const p=new THREE.Mesh(new THREE.PlaneGeometry(6,1.25),new THREE.MeshBasicMaterial({map:cv.t}));p.position.set(0,3.4,-S+.17);G.add(p)}
+ if(kind=='box'){
+  const red=Lm('#b3121f',0x200404),navy=Lm('#1f4fa8',0x06122a),wht=Lm('#f2f2f2',0x262626),steel=Lm('#8d949c',0x15171a);
+  bx(red,2*h+1.1,.012,2*h+1.1,0,.006,0);bx(navy,2*h,.012,2*h,0,.018,0);
+  {const cv=cdCanvas(512,512),g=cv.x;g.fillStyle='#1f4fa8';g.fillRect(0,0,512,512);g.strokeStyle='#f2f2f2';g.lineWidth=10;g.strokeRect(14,14,484,484);g.fillStyle='#b3121f';g.beginPath();g.arc(256,256,150,0,Math.PI*2);g.fill();g.strokeStyle='#f2c14e';g.lineWidth=8;g.stroke();g.fillStyle='#fff';g.textAlign='center';g.font='bold 74px sans-serif';g.fillText('BOXE',256,250,260);g.font='bold 34px sans-serif';g.fillStyle='#f2c14e';g.fillText('ACADEMIA',256,300,260);cv.t.needsUpdate=true;
+   const p=new THREE.Mesh(new THREE.PlaneGeometry(2*h,2*h),new THREE.MeshBasicMaterial({map:cv.t}));p.rotation.x=-Math.PI/2;p.position.y=.026;G.add(p)}
+  for(const[sx,sz,cc]of[[-1,-1,'#b3121f'],[1,-1,'#1f4fa8'],[-1,1,'#f2f2f2'],[1,1,'#f2f2f2']]){bx(steel,.12,1.6,.12,sx*h,.8,sz*h);bx(Lm(cc,0x151515),.24,.8,.24,sx*h,.78,sz*h)}
+  [.45,.85,1.25].forEach((y,k)=>{const m=k==1?red:wht;bx(m,2*h,.045,.045,0,y,-h);bx(m,2*h,.045,.045,0,y,h);bx(m,.045,.045,2*h,-h,y,0);bx(m,.045,.045,2*h,h,y,0)})
+ }else{
+  cyl(Lm('#b3121f',0x200404),h+.45,.012,0,0,0);cyl(Lm('#1f4fa8',0x06122a),h,.012,0,.012,0);
+  {const cv=cdCanvas(512,512),g=cv.x;g.fillStyle='#1f4fa8';g.fillRect(0,0,512,512);g.strokeStyle='#f2f2f2';g.lineWidth=12;g.beginPath();g.arc(256,256,238,0,Math.PI*2);g.stroke();g.strokeStyle='#b3121f';g.lineWidth=34;g.beginPath();g.arc(256,256,206,0,Math.PI*2);g.stroke();g.fillStyle='#f2f2f2';g.beginPath();g.arc(256,256,92,0,Math.PI*2);g.fill();g.fillStyle='#1f4fa8';g.font='bold 40px sans-serif';g.textAlign='center';g.fillText('WRESTLING',256,268,170);cv.t.needsUpdate=true;
+   const p=new THREE.Mesh(new THREE.CircleGeometry(h,64),new THREE.MeshBasicMaterial({map:cv.t}));p.rotation.x=-Math.PI/2;p.position.y=.026;G.add(p)}
+  const bd=new THREE.Mesh(new THREE.TorusGeometry(h+.12,.09,10,72),Lm('#b3121f',0x200404));bd.rotation.x=Math.PI/2;bd.position.y=.09;G.add(bd)
+ }
+ return G}
+function bxMundo(on,kind){
+ if(!on){if(BXW.hid){BXW.hid.visible=true;BXW.hid=null}if(BXW.g){scene.remove(BXW.g);try{lojaLimpa(BXW.g)}catch(e){}BXW.g=null}cityG.position.set(0,0,0);BXW.on=false;return false}
+ try{const G=roomMk(kind||'box');scene.add(G);BXW.g=G;BXW.on=true;return true}catch(e){dbg('ERRO ringue: '+e.message);return false}}
+function wrMundo(){return bxMundo(true,'wr')}
+function bxFight(){carFixa();bxMundo(false);bxMundo(true,'box');
+ FRY=0;ENT.on=false;arenaOff();MODE='fight';setEnv('farm');cityG.visible=false;farmG.visible=false;AENV='gym';try{audEnv('gym')}catch(e){}trainG.visible=false;menuP.visible=false;enemyVis(true);spawn();reset();setBody()}   // igual startFightWalk, mas a luta acontece dentro da academia
 function bxLutar(id){const a=BXA_ID[id];if(!a||!CAR)return;if(mmaBloq()){mmaMsg();return}
  const L=lojaLots().boxe;if(L&&L.in&&L.in.userData.bxp)bxPanelClose(L);
  try{if(MODE=='car')carPosTick(0,true)}catch(e){}
@@ -5709,21 +5729,8 @@ function wrTick(dt){
 // ======================= CIRCULO UNICO DA ACADEMIA DE WRESTLING =======================
 // Mesmo esquema do boxe: a luta acontece em cima do tatame redondo da propria academia, sem teleporte. Um circulo de luta proprio (faixa vermelha de passividade,
 // borda acolchoada e centro marcado) e posto no centro do tatame; esse centro vira a origem da luta e a cidade e deslocada so durante a luta (bxMundo(false) desfaz).
-function wrMundo(){
- const L=lojaLots().wrest;if(!L||!L.g)return false;
- const h=VRON?2.1:3.4,rx=L.cx,rz=L.hz+1.2,fy=L.g.position.y+.2,G=new THREE.Group();
- const Lm=(c,o)=>new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));
- const cy=(m,r,hh,y)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,hh,64),m);o.position.y=y+hh/2;G.add(o);return o};
- cy(Lm('#b3121f'),h+.45,.012,0);cy(Lm('#1f4fa8'),h,.012,.012);
- {const cv=cdCanvas(512,512),g=cv.x;g.fillStyle='#1f4fa8';g.fillRect(0,0,512,512);g.strokeStyle='#f2f2f2';g.lineWidth=12;g.beginPath();g.arc(256,256,238,0,Math.PI*2);g.stroke();g.strokeStyle='#b3121f';g.lineWidth=34;g.beginPath();g.arc(256,256,206,0,Math.PI*2);g.stroke();
-  g.fillStyle='#f2f2f2';g.beginPath();g.arc(256,256,92,0,Math.PI*2);g.fill();g.fillStyle='#1f4fa8';g.font='bold 40px sans-serif';g.textAlign='center';g.fillText('WRESTLING',256,268,170);cv.t.needsUpdate=true;
-  const p=new THREE.Mesh(new THREE.CircleGeometry(h,64),new THREE.MeshLambertMaterial({map:cv.t,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));p.rotation.x=-Math.PI/2;p.position.y=.0245;G.add(p)}
- const bd=new THREE.Mesh(new THREE.TorusGeometry(h+.12,.09,10,72),Lm('#b3121f'));bd.rotation.x=Math.PI/2;bd.position.y=.09;G.add(bd);   // borda acolchoada baixa
- G.position.set(rx,fy,rz);cityG.add(G);BXW.g=G;
- try{const P=L.in&&L.in.userData.ppl;if(P){const d=P.find(a=>a.k=='des'&&a.id==WRR.aluno);if(d){d.g.visible=false;BXW.hid=d.g}}}catch(e){}
- cityG.position.set(-rx,-fy,-rz);BXW.on=true;return true}
-function wrFight(){bxMundo(false);if(!wrMundo()){startFightWalk();return}
- FRY=0;ENT.on=false;arenaOff();MODE='fight';setEnv('farm');cityG.visible=true;farmG.visible=false;AENV='gym';try{audEnv('gym')}catch(e){}trainG.visible=false;menuP.visible=false;enemyVis(true);spawn();reset();setBody()}
+function wrFight(){carFixa();bxMundo(false);wrMundo();
+ FRY=0;ENT.on=false;arenaOff();MODE='fight';setEnv('farm');cityG.visible=false;farmG.visible=false;AENV='gym';try{audEnv('gym')}catch(e){}trainG.visible=false;menuP.visible=false;enemyVis(true);spawn();reset();setBody()}
 function wrLutar(id){const a=WRA_ID[id];if(!a||!CAR)return;if(mmaBloq()){mmaMsg();return}
  const L=lojaLots().wrest;if(L&&L.in&&L.in.userData.wrp)wrPanelClose(L);
  try{if(MODE=='car')carPosTick(0,true)}catch(e){}
