@@ -1576,17 +1576,17 @@ class Enemy{
    if((this.pvy||0)<-2.4&&vy>this.pvy*.35&&pel.p.y<.55&&this.st!='fin'){const sp=-this.pvy,dm=Math.min(70,(sp-2)*((this.lh||0)>1.1?10:4));this.lh=0;
     if(dm>0){const b0=this.hpB,h0=this.hpH;this.hpB=Math.max(0,this.hpB-(WRR.on?0:dm));this.injB+=(b0-this.hpB)*.1;this.mnB=Math.min(this.mnB,this.hpB);this.hpH=Math.max(0,this.hpH-(WRR.on?0:dm*.35));this.injH+=(h0-this.hpH)*.1;this.mnH=Math.min(this.mnH,this.hpH);this.bal=Math.min(this.bal,.2);punchSnd(Math.min(1,sp/8),'body');crowdE=Math.min(1,crowdE+.2+.05*sp);if(this.hp<=0)this.koHp()}}
    if(!held&&pel.p.y<.55&&Math.abs(vy)<.5)this.lh=0;this.pvy=vy}   // dano de queda: bate no chão depois de ser levantado/arremessado
-  let tg=alive?Math.pow(this.bal,1.5):0;if(down&&(held||this.nog>0||mnt||(!this.gp&&(this.gt<2||this.bal<.5))))tg=0;
+  const ga=alive||(BXR.on&&this.st!='fin');let tg=ga?Math.pow(this.bal,1.5):0;if(down&&(held||this.nog>0||mnt||(!this.gp&&(this.gt<(BXR.on?.6:2)||this.bal<.5))))tg=0;   // BOXE: ga = pode levantar sozinho (inclusive no knockdown); espera só .6 s no chão
   if(mnt)tg=0;
   if(this.gp&&!mnt){if(this.bal<.25)tg=0;else if(tg>0)tg=Math.max(tg,.8)}   // levantando: não aborta por gt/bal<.5 no meio; força de pé (s) alta pra não ceder na hora de soltar o controleif(held)tg*=hH||hT||hL==3?.8:hL?.93:.98;
   // levantar: liga quando pode se recuperar e está baixo; desliga ao ficar de pé, ser segurado ou ser nocauteado de novo
-  if(alive&&tg>0&&!held&&pel.p.y<.8)this.gu=1;else if(!alive||tg<=0||held||pel.p.y>.9)this.gu=0;
+  if(ga&&tg>0&&!held&&pel.p.y<.8)this.gu=1;else if(!ga||tg<=0||held||pel.p.y>.9)this.gu=0;
   this.gtu=this.gu&&pel.p.y<.75?this.gtu+dt:0;
-  if(!this.gu||!alive||held)this.gp=0;else if(!this.gp&&down)this.gpInit(tp);   // levantar em fases só começa quando ele está caído
+  if(!this.gu||!ga||held)this.gp=0;else if(!this.gp&&down)this.gpInit(tp);   // levantar em fases só começa quando ele está caído
   {const cc=(!BXR.on&&PL.gnd&&alive&&!held&&!down&&!this.gp&&this.st=='fight'&&!this.rest&&MODE=='fight'&&Math.hypot(tp.x-pel.p.x,tp.z-pel.p.z)<1.7)?1:0;this.cr=(this.cr||0)+(cc-(this.cr||0))*Math.min(1,dt*(cc?3:5))}   // cr: 0..1 = quanto ele está agachado sobre o jogador caído
   this.hipLim(this.gp||this.cr>.05?2:down&&!held?1:0);if(this.gp)this.getUp(dt,tp);
   if(this.gpw&&!this.gp&&alive&&!held&&pel.p.y>.8)this.bal=Math.max(this.bal,.85);this.gpw=this.gp;   // acabou de levantar: equilíbrio como depois do knockdown (com bal ~.5 o s caía pra ~.35 e ele cedia sozinho)
-  if(BXR.on){this.bal=Math.max(this.bal,.55);if(tg<.9)tg=.9;this.gp=0;this.gu=0;this.gtu=0;if(!held&&this.st!='fin'&&this.gt>.7)this.bxUp()}   // BOXE: impossível cair / perder o equilíbrio
+  if(BXR.on){this.bal=Math.max(this.bal,.55);if(tg<.9&&!down&&!this.gp)tg=.9;if(!held&&this.st!='fin'&&this.gt>5)this.bxUp()}   // BOXE: se cair, levanta sozinho (getUp normal, pernas com força); só se ficar preso 5 s no chão é recolocado em pé   // BOXE: impossível cair / perder o equilíbrio
   this.s+=(tg-this.s)*Math.min(1,dt*3);const s=this.s;
   // queda: segue a física (se vinha andando pra frente cai de bruços, se levou soco de frente cai de costas). Só quando o jogador fica POR CIMA/deitado nele (e não está segurando) ele é virado de barriga pra cima.
   const fall=!BXR.on&&!held&&(pel.p.y<.62||(pel.p.y<.9&&!this.gu&&(!alive||this.bal<.15)));
@@ -5505,7 +5505,18 @@ function bxAviso(t1,t2,cor){if(!BXAV.m){const c=cdCanvas(512,160);BXAV.c=c;BXAV.
  const g=BXAV.c.x;g.clearRect(0,0,512,160);g.fillStyle='rgba(18,6,6,.9)';cdRR(g,0,0,512,160,24);g.fill();g.strokeStyle=cor;g.lineWidth=6;cdRR(g,3,3,506,154,22);g.stroke();g.textAlign='center';g.fillStyle=cor;g.font='bold 42px sans-serif';g.fillText(t1,256,70,480);g.fillStyle='#fff';g.font='bold 24px sans-serif';g.fillText(t2,256,118,480);BXAV.c.t.needsUpdate=true;BXAV.t=4.5;BXAV.m.visible=true}
 function bxAvTick(dt){if(!BXAV.m||BXAV.t<=0)return;BXAV.t-=dt;if(BXAV.t<=0){BXAV.m.visible=false;return}const e=cam.getWorldPosition(new THREE.Vector3()),f=cam.getWorldDirection(new THREE.Vector3());f.y=0;if(f.lengthSq()<1e-4)f.set(0,0,-1);f.normalize();
  BXAV.m.position.set(e.x+f.x*1.0,e.y-.08,e.z+f.z*1.0);BXAV.m.lookAt(e.x,BXAV.m.position.y,e.z);BXAV.m.material.opacity=Math.min(1,BXAV.t)}
-function bxTick(dt){bxAvTick(dt);if(BXW.on){if(MODE!='fight')bxMundo(false);else{farmG.visible=false;cityG.visible=false}}if(BXR.pend&&MODE=='fight'&&typeof enemy!='undefined'&&enemy&&enemy.P){BXR.pend=false;bxRegras(true);const a=BXA_ID[BXR.aluno];if(a){enemy.sty=a.sty;fkApply(a.id);dbg('ALUNO: '+a.nome+' ('+a.estilo+')')}}
+// plaquinha SAIR DA LUTA (igual ao ENCERRAR do sparring com o Alexie): mão em cima por SP_HOLD s = volta pra academia a qualquer hora
+const BXB={m:null,ps:null,c:null,hold:0};
+function bxBtnDraw(){const g=BXB.c.x,f=BXB.hold/SP_HOLD;g.clearRect(0,0,256,256);g.fillStyle='#0009';g.beginPath();g.arc(128,128,122,0,TAU);g.fill();g.fillStyle=f>0?'#d8322a':'#a8241d';g.beginPath();g.arc(128,128,96*(1+.12*f),0,TAU);g.fill();
+ g.strokeStyle='#fff';g.lineWidth=10;g.lineCap='round';g.beginPath();g.arc(128,128,112,-Math.PI/2,-Math.PI/2+TAU*f);g.stroke();g.fillStyle='#fff';g.textAlign='center';g.font='bold 30px sans-serif';g.fillText('SAIR DA',128,118);g.fillText('LUTA',128,152);g.font='bold 20px sans-serif';g.fillStyle='#ffe3df';g.fillText('mão aqui '+SP_HOLD+'s',128,184);BXB.c.t.needsUpdate=true}
+function bxBtnTick(dt){const on=BXR.on&&MODE=='fight'&&!SP.on;
+ if(!on){if(BXB.m&&BXB.m.visible){BXB.m.visible=false;BXB.ps.visible=false;BXB.hold=0}return}
+ if(!BXB.m){const c=cdCanvas(256,256);BXB.c=c;const m=new THREE.Mesh(new THREE.PlaneGeometry(.26,.26),new THREE.MeshBasicMaterial({map:c.t,transparent:true,side:THREE.DoubleSide,depthTest:false}));m.renderOrder=994;m.position.copy(SP_BTN);scene.add(m);BXB.m=m;
+  const ps=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,SP_BTN.y,10),new THREE.MeshStandardMaterial({color:0x3a2f22,roughness:.9}));ps.position.set(SP_BTN.x,SP_BTN.y/2-.14,SP_BTN.z-.05);scene.add(ps);BXB.ps=ps;bxBtnDraw()}
+ if(!BXB.m.visible){BXB.m.visible=true;BXB.ps.visible=true;BXB.hold=0;bxBtnDraw()}
+ let near=false;for(const h of hands)if(h.pos.distanceTo(SP_BTN)<.15)near=true;const ho=BXB.hold;BXB.hold=near?Math.min(SP_HOLD,BXB.hold+dt):Math.max(0,BXB.hold-dt*2);if(Math.abs(BXB.hold-ho)>.03||(!BXB.hold&&ho))bxBtnDraw();
+ if(BXB.hold>=SP_HOLD){BXB.hold=0;BXB.m.visible=false;BXB.ps.visible=false;snd(420,.35);startCareer()}}
+function bxTick(dt){bxAvTick(dt);bxBtnTick(dt);if(BXW.on){if(MODE!='fight')bxMundo(false);else{farmG.visible=false;cityG.visible=false}}if(BXR.pend&&MODE=='fight'&&typeof enemy!='undefined'&&enemy&&enemy.P){BXR.pend=false;bxRegras(true);const a=BXA_ID[BXR.aluno];if(a){enemy.sty=a.sty;fkApply(a.id);dbg('ALUNO: '+a.nome+' ('+a.estilo+')')}}
  if(!BXR.on)return;if(MODE!='fight'||SP.on){bxRegras(false);return}
  for(let i=0;i<2;i++){const h=hands[i],g=SP.g[i];if(!g)continue;h.mesh.visible=false;g.visible=true;g.position.copy(h.mesh.position);g.quaternion.copy(h.mesh.quaternion)}   // luva vermelha segue a mão
  if(BXR.aluno&&CAR){cam.getWorldPosition(SP.eye);BXR.gd=spGuarda();   // guarda levantada? (pra contar lesão) e bônus de lobby a cada 30 s (um pouco mais que o Alexie)
