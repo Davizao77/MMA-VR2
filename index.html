@@ -1205,12 +1205,16 @@ const V0=.1,VREF=8,VMAX=22,HMIN=.2,punchPower=v=>v<=V0?0:Math.pow(Math.min(v,VMA
 // ---------- Dificuldade: hp/st = resistência (vida e vigor), ag = agressividade, dm = dano que ele causa ----------
 // bk = bloqueio antecipado (só Difícil/Ultra); bd = tempo de reação dele em s (menor = bloqueia socos mais rápidos); sq = quantos socos seguidos estouram a guarda
 const DIFFS=[{n:'Super fácil',hp:.8,st:.7,ag:.6,dm:.7,bk:0},{n:'Fácil',hp:2.5,st:1,ag:1,dm:1,bk:0},{n:'Médio',hp:4.8,st:1.5,ag:1.4,dm:1.15,bk:0},{n:'Difícil',hp:9.6,st:2.2,ag:1.9,dm:1.3,bk:1,bd:.15,sq:1.9},{n:'Ultra difícil',hp:14,st:3,ag:2.7,dm:1.5,bk:1,bd:.08,sq:2.6},{n:'Rua 1',hp:1,st:1,ag:1,dm:1,bk:0},{n:'Rua 2',hp:2.5,st:1.4,ag:1.3,dm:1.1,bk:0},{n:'Rua 3',hp:5,st:2,ag:1.7,dm:1.25,bk:1,bd:.15,sq:1.9},{n:'Rua 4',hp:9.6,st:2.6,ag:2.3,dm:1.4,bk:1,bd:.1,sq:2.4},
-{n:'Forja 1 Fagulha',hp:2.2,st:1.3,ag:2.1,dm:.9,bk:0},
-{n:'Forja 2 Martelo',hp:7,st:1.8,ag:1,dm:1.7,bk:0},
+{n:'Forja 1 Fagulha',hp:2.4,st:1.4,ag:2.3,dm:1,bk:0},   // 07/11: ~11 dias de treino desde a derrota (27/10): ~+10% em tudo
+
+{n:'Forja 2 Martelo',hp:7.6,st:2,ag:1.1,dm:1.8,bk:0},   // 07/11: idem (derrota em 27/10)
+
 {n:'Forja 3 Bigorna',hp:12,st:3.2,ag:1.3,dm:1,bk:1,bd:.12,sq:1.9},
-{n:'Forja 4 Cinza',hp:6,st:2.2,ag:2.5,dm:1.3,bk:1,bd:.07,sq:2.7},
+{n:'Forja 4 Cinza',hp:6.6,st:2.4,ag:2.7,dm:1.4,bk:1,bd:.06,sq:2.7},   // 07/11: ~10 dias de treino desde a derrota (28/10): mais aguento, mais agressão, bloqueio mais rápido
+
 {n:'Forja 5 Fornalha',hp:15,st:3.2,ag:2.7,dm:1.65,bk:1,bd:.06,sq:2.8},
-{n:'Forja 6 Ferrugem',hp:9,st:2.6,ag:1.9,dm:1.3,bk:1,bd:.1,sq:2.3},
+{n:'Forja 6 Ferrugem',hp:9.8,st:2.8,ag:2,dm:1.4,bk:1,bd:.09,sq:2.3},   // 07/11: só 4 dias desde a derrota (03/11), mas pediu revanche 2x e treinou focado: ~+8%
+
 {n:'Forja 7 Alto-Forno',hp:19,st:3.6,ag:3,dm:1.9,bk:1,bd:.05,sq:3.2},
 {n:'Boxe 1 Bulldog',hp:16,st:4.2,ag:3.1,dm:2.1,bk:1,bd:.09,sq:2.4},
 {n:'Boxe 2 Lança',hp:17,st:3.5,ag:2.3,dm:2,bk:1,bd:.07,sq:2.6},
@@ -4081,12 +4085,12 @@ function lbVis(){if(!CAR||!(NPC.list&&NPC.list.length))return;const id=lbTier().
  if(ind){if(!LB.g[id])LB.g[id]=lbBuildAny(id);const mine=Object.keys(LB.g).map(k=>LB.g[k]);for(const c of farmG.children){if(keep.has(c)||mine.indexOf(c)>=0)continue;if(c.visible){c.visible=false;LB.hid.add(c)}}}
  else{LB.hid.forEach(c=>c.visible=true);LB.hid.clear()}
  for(const k in LB.g)LB.g[k].visible=k==id}
-function lbEnv(){const t=lbTier();lbVis();if(t.id!='fazenda'){scene.background=new THREE.Color(t.bg);scene.fog=new THREE.Fog(t.bg,18,42);hemi.color.set(t.hc);hemi.groundColor.set(t.hg);hemi.intensity=t.hi;sun.intensity=.4;sun.color.set(0xfff4e0);fill.intensity=.25}if(typeof cityHomeCar=='function')cityHomeCar(false)}
+function lbEnv(mv){const t=lbTier();lbVis();if(t.id!='fazenda'){scene.background=new THREE.Color(t.bg);scene.fog=new THREE.Fog(t.bg,18,42);hemi.color.set(t.hc);hemi.groundColor.set(t.hg);hemi.intensity=t.hi;sun.intensity=.4;sun.color.set(0xfff4e0);fill.intensity=.25}if(mv&&typeof cityHomeCar=='function')cityHomeCar(false)}
 function lbAlugar(id){const t=LB_T.find(q=>q.id==id);if(!t||!CAR)return;LBMSG='';
  if(SP.ph||CD.st!='a'){LBMSG='Termine o treino/sparring antes.';CEL.dirty=true;return}
  if(t.alug>0&&lbTier().id!=id&&!carMov(-t.alug,'Aluguel: '+t.nome)){LBMSG='Saldo insuficiente.';CEL.dirty=true;return}
- CAR.lobby={atual:id};carSalvar();lbEnv();LBMSG='';CEL.dirty=true}
-function lbDia(){const t=lbTier();if(t.alug<=0)return;if(!carMov(-t.alug,'Aluguel diário: '+t.nome)){CAR.lobby={atual:'fazenda'};LBAV='Sem grana pro aluguel: de volta à fazenda.';lbEnv()}}
+ CAR.lobby={atual:id};carSalvar();lbEnv(true);LBMSG='';CEL.dirty=true}
+function lbDia(){const t=lbTier();if(t.alug<=0)return;if(!carMov(-t.alug,'Aluguel diário: '+t.nome)){CAR.lobby={atual:'fazenda'};LBAV='Sem grana pro aluguel: de volta à fazenda.';lbEnv(true)}}
 function celLobby(){const g=CEL.cx,cur=lbTier();celHdr('LOBBY',()=>celGo('home'));
  celT(LBMSG||'Aluguel todo dia. Sem saldo, você volta pra fazenda.',256,162,21,LBMSG?CELC.D:CELC.sub,'center','normal',460);
  const[pa,pb]=celPager(892,LB_T.length,5);
@@ -4119,13 +4123,13 @@ const CAR_ROSTER=[
 // CONVITE: 1 = jogador convidado pro evento (o Claude muda isso no index.html depois de ler o JSON de resultados). Sem convite o lutador NÃO aparece nas propostas nem como rival.
 const FORJA_CONVITE={forja1:1,forja2:1,forja3:1,forja4:1,forja5:0,forja6:1,forja7:0};   // dia 3: passou nas 3 (Fagulha, Martelo, Bigorna) -> Cinza liberado; Fornalha só depois de vencer o Cinza (forjaConv)
 // RECUSA: lutador que se acha sem direito a outra chance 'por agora' some das propostas até a data (AAAA-MM-DD, dia da carreira). O Claude muda aqui depois de ler os resultados.
-const PROP_FORA={rua3:{ate:'2026-10-31'},forja1:{ate:'2026-11-01'},forja2:{ate:'2026-11-02'},forja3:{ate:'2026-11-03'},forja5:{ate:'2026-11-14'},rua5:{ate:'2026-11-04'},rua6:{ate:'2026-11-04'},rua7:{ate:'2026-11-05'},rua8:{ate:'2026-11-06'}};   // Fornalha: já perdeu 2x pra você e depois pro Alto-Forno, fora até 14/11
+const PROP_FORA={rua2:{ate:'2026-11-12'},rua3:{ate:'2026-11-14'},forja1:{ate:'2026-11-01'},forja2:{ate:'2026-11-02'},forja3:{ate:'2026-11-03'},forja5:{ate:'2026-11-14'},rua5:{ate:'2026-11-04'},rua6:{ate:'2026-11-04'},rua7:{ate:'2026-11-11'},rua8:{ate:'2026-11-06'}};   // Fornalha: já perdeu 2x pra você e depois pro Alto-Forno, fora até 14/11
 const foraAgora=id=>{const o=PROP_FORA[id];if(!o)return false;try{return carHoje()<o.ate}catch(e){return false}};
 const FORJA7_DATA='2026-11-03',FORJA7_TOP=5;   // Alto-Forno (novo campeão): só aceita depois de 03/11, com o Ferrugem vencido e você no top 5 do ranking
 const forjaMereceu7=()=>!!(CAR&&carHoje()>=FORJA7_DATA&&CAR.cartel.some(x=>x.op&&x.op.id=='forja6'&&x.res=='V')&&carPos()<=FORJA7_TOP);
 // ===== DIA 04/11: acordo fechado no DM privado com o Tadeu =====
 // Na Arena Forja, por enquanto, SÓ aparecem 2 propostas: revanche com o Bigorna e o Rei da Roda (que agora luta na Forja). Os outros ficam fechados até o Claude liberar.
-const FORJA_SO={forja3:1,rua4:1,forja7:1};
+const FORJA_SO={forja1:1,forja2:1,forja4:1,forja6:1,forja7:1};   // DIA 07/11: cartaz de segunda do Tadeu: Fagulha, Martelo, Cinza e Ferrugem
 // de = a partir de quando vale; grana = cachê do Tadeu (fora o prêmio da proposta, sem título); premio = prêmio fixo combinado da proposta (550 e 710)
 const FORJA_REV={forja3:{de:'2026-11-04',grana:1000,premio:550},rua4:{de:'2026-11-04',grana:600,premio:710}};
 // NOITE DUPLA: vencer os dois no mesmo dia paga mais 1.000 do Tadeu (uma vez só)
@@ -4133,13 +4137,17 @@ const FORJA_DUPLA={de:'2026-11-04',ids:['forja3','rua4'],grana:1000};
 // ===== DIA 06/11: LUTA DO CINTURÃO (Alto-Forno) com VALOR FIXO =====
 // Vitória = EXATAMENTE 15.000 (já inclui o título; sem multiplicador de atenção e sem bônus extra). Derrota, empate ou desistência = EXATAMENTE 600.
 // O cartão do celular mostra os dois valores, e o que cai na conta é igual ao que está escrito. Depois de vencer, o convite fecha (não repete os 15 mil).
-const FORJA_FIXA={forja7:{de:'2026-11-06',ganha:15000,perde:600,titulo:'Campeão da Arena Forja'}};
+const FORJA_FIXA={forja7:{de:'2026-11-06',ganha:15000,perde:600,titulo:'Campeão da Arena Forja'},
+ // DEFESAS DE CINTURÃO (cartaz de segunda, DM com o Tadeu): vitória = EXATAMENTE o valor; sem vitória = R$ 0 (o Tadeu não falou em bolsa de derrota). Valores fixos, sem atenção/bônus.
+ forja1:{de:'2026-11-09',ganha:600,perde:0,defesa:1},forja2:{de:'2026-11-09',ganha:1500,perde:0,defesa:1},forja4:{de:'2026-11-09',ganha:2500,perde:0,defesa:1},forja6:{de:'2026-11-09',ganha:3500,perde:0,defesa:1}};
+// NOITE DUPLA: vencer 2 defesas DIFERENTES no mesmo dia = +1.000 (paga uma vez por dia)
+const FORJA_NOITE={de:'2026-11-09',grana:1000};
 // venceu = já ganhou dele (nas revanches só conta vitória a partir da data 'de', senão a luta antiga contaria)
-const forjaVenceu=id=>{const v=FORJA_REV[id],lim=v&&carHoje()>=v.de?v.de:'';return CAR.cartel.some(x=>x.op&&x.op.id==id&&x.res=='V'&&(!lim||x.dia>=lim))};
+const forjaVenceu=id=>{const v=FORJA_REV[id]||FORJA_FIXA[id],lim=v&&carHoje()>=v.de?v.de:'';return CAR.cartel.some(x=>x.op&&x.op.id==id&&x.res=='V'&&(!lim||x.dia>=lim))};
 const carPremioF=(f,eu)=>{const x=FORJA_FIXA[f.id];if(x)return x.ganha;const v=FORJA_REV[f.id];return v&&v.premio&&carHoje()>=v.de?v.premio:carPropPremio(f.r,eu)};
 // RUA: lutadores NOVOS (t:'novo') e quem quer REVANCHE (t:'rev') entram garantidos nas propostas de rua a partir da data 'de', até você lutar com eles
 const RUA_DES={rua1:{t:'rev',de:'2026-11-04'},rua3:{t:'rev',de:'2026-11-04'},rua5:{t:'novo',de:'2026-11-04'},rua6:{t:'novo',de:'2026-11-04'},rua7:{t:'novo',de:'2026-11-05'},rua8:{t:'novo',de:'2026-11-06'}};
-const ruaPend=id=>{const o=RUA_DES[id];if(!o||!CAR)return false;try{return carHoje()>=o.de&&!CAR.cartel.some(x=>x.op&&x.op.id==id&&x.dia>=o.de)}catch(e){return false}};
+const ruaPend=id=>{const o=RUA_DES[id];if(!o||!CAR)return false;try{return carHoje()>=o.de&&!foraAgora(id)&&!CAR.cartel.some(x=>x.op&&x.op.id==id&&x.dia>=o.de)}catch(e){return false}};
 const forjaConv=id=>{if(foraAgora(id))return 0;if(!FORJA_SO[id])return 0;if(FORJA_FIXA[id])return carHoje()>=FORJA_FIXA[id].de&&!forjaVenceu(id)?1:0;if(FORJA_REV[id])return 1;if(id=='forja7')return forjaMereceu7()?1:0;if(FORJA_CONVITE[id])return 1;try{return id=='forja5'&&CAR&&CAR.cartel.some(x=>x.op&&x.op.id=='forja4'&&x.res=='V')?1:0}catch(e){return 0}};   // CONVIDADO (3 nocautes no round 1 numa noite): Fagulha, Martelo e Bigorna liberados; Cinza e Fornalha só depois
 const forjaOk=f=>{if(foraAgora(f.id))return false;const c=CAR_ROSTER_ID[f.id];return !(c&&c.forja)||!!forjaConv(f.id)};
 const FORJA_R={forja1:{grana:600,titulo:'Faísca Viva'},forja2:{grana:1500,titulo:'Quebra-Ossos'},forja3:{grana:1200,titulo:'Derrubador de Muralha'},forja4:{grana:2500,titulo:'Sombra da Forja'},forja5:{grana:6000,titulo:'Campeão da Arena Forja'},forja6:{grana:3500,titulo:'Quebra-Corrente'},forja7:{grana:15000,titulo:'Campeão da Arena Forja'}};
@@ -4226,6 +4234,16 @@ let posT=0;function carPosTick(dt,force){if(!CAR||MODE!='car'||DRV.on||PRI.on||N
 addEventListener('pagehide',()=>carPosTick(0,true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)try{carPosTick(0,true)}catch(e){}});
 // grava onde o carro está AGORA (antes de entrar no sparring/luta da academia): o salvamento normal só roda a cada 3 s e o carro voltava pro pátio
+let CARRO_ACAD='';   // academia (boxe/wrest) onde a luta aconteceu: se o carro salvo não puder voltar pro lugar, ele fica na entrada dela
+function carroEntrada(id){try{const L=lojaLots()[id];if(!L||!L.door)return null;return{x:Math.round((L.door.x+6)*100)/100,z:Math.round((L.door.z-7)*100)/100}}catch(e){return null}}
+function carroRestaura(){try{if(!CAR||!CARRO.g||DRV.on)return;const cp=CAR.carp;let x,z,yw;
+ const ok=cp&&isFinite(+cp.x)&&isFinite(+cp.z)&&!(typeof lojaHit=='function'&&lojaHit(+cp.x,+cp.z,2));
+ if(ok){x=+cp.x;z=+cp.z;yw=isFinite(+cp.yaw)?+cp.yaw:CARRO.yaw}
+ else if(CARRO_ACAD){const e=carroEntrada(CARRO_ACAD);if(e){x=e.x;z=e.z;yw=cp&&isFinite(+cp.yaw)?+cp.yaw:CARRO.yaw}}
+ CARRO_ACAD='';
+ if(x===undefined)return;
+ CARRO.x=x;CARRO.z=z;CARRO.yaw=yw;CARRO.g.position.set(x,0,z);CARRO.g.rotation.set(0,yw,0);CARRO.g.visible=true;if(LB.hid)LB.hid.delete(CARRO.g);
+ CAR.carp={x:Math.round(x*100)/100,z:Math.round(z*100)/100,yaw:Math.round(yw*100)/100}}catch(e){try{dbg('carro restaura: '+e)}catch(_){}}}
 function carFixa(){try{if(CAR&&CARRO.g&&!DRV.on&&isFinite(CARRO.x)&&isFinite(CARRO.z)){CAR.carp={x:Math.round(CARRO.x*100)/100,z:Math.round(CARRO.z*100)/100,yaw:Math.round(CARRO.yaw*100)/100};carSalvar()}}catch(e){}}
 function carModel(){const vr=R.xr.isPresenting,m=[],L=[];
  if(CARMSG)L.push(CARMSG);
@@ -4273,7 +4291,12 @@ function carLutaFim(m){const F=CARF;CARF=null;if(!F||!CAR||MODE!='fight')return;
  const oc=CAR_ROSTER_ID[F.op],ol=CAR.lutadores.find(f=>f.id==F.op);if(!oc||!ol)return;
  const FX=FORJA_FIXA[F.op],FXM=!!(FX&&F.prem!=null&&CAR.prop&&CAR.prop.marcada&&CAR.prop.marcada.id==F.op);   // luta de cinturão marcada pelo celular: VALOR FIXO
  const A0=F.rua?propRua(F,q,RD.n):{aten:0,grana:0,seg:0},A=FXM?Object.assign({},A0,{grana:q[0]=='V'?FX.ganha:FX.perde}):A0;
- if(F.prem!=null&&CAR.prop&&CAR.prop.marcada&&CAR.prop.marcada.id==F.op){CAR.prop.marcada=null;CAR.prop.lut++;if(FXM){if(carMov(A.grana,q[0]=='V'?'Arena Forja: CINTURÃO vs '+oc.nome:'Arena Forja: bolsa vs '+oc.nome))PROP_MSG=q[0]=='V'?'🏆 CINTURÃO! +'+carFmt(A.grana)+' · Título: '+FX.titulo:'+'+carFmt(A.grana)+' de bolsa (sem vitória)'}else if(F.rua){if(A.grana>0&&carMov(A.grana,'Galera da roda: luta vs '+oc.nome))PROP_MSG='+'+carFmt(A.grana)+' da galera ('+A.aten+'% de atenção)'}else if(q[0]=='V'&&carMov(F.prem,'Prêmio: luta vs '+oc.nome))PROP_MSG='+'+carFmt(F.prem)+' de prêmio'}
+ if(F.prem!=null&&CAR.prop&&CAR.prop.marcada&&CAR.prop.marcada.id==F.op){CAR.prop.marcada=null;CAR.prop.lut++;if(FXM){const vit=q[0]=='V';
+  if(A.grana>0){if(carMov(A.grana,vit?(FX.defesa?'Arena Forja: DEFESA vs '+oc.nome:'Arena Forja: CINTURÃO vs '+oc.nome):'Arena Forja: bolsa vs '+oc.nome))PROP_MSG=vit?(FX.defesa?'🛡️ Defesa de cinturão! +'+carFmt(A.grana):'🏆 CINTURÃO! +'+carFmt(A.grana)+' · Título: '+FX.titulo):'+'+carFmt(A.grana)+' de bolsa (sem vitória)'}
+  else PROP_MSG='Sem cachê (sem vitória)';
+  if(vit&&FX.defesa){const hj=carHoje(),dd=Object.keys(FORJA_FIXA).filter(i=>FORJA_FIXA[i].defesa&&i!=oc.id&&CAR.cartel.some(x=>x.op&&x.op.id==i&&x.res=='V'&&x.dia==hj));
+   if(hj>=FORJA_NOITE.de&&dd.length==1&&!CAR.cartel.some(x=>x.op&&x.op.id==oc.id&&x.res=='V'&&x.dia==hj)){if(carMov(FORJA_NOITE.grana,'Arena Forja: noite dupla (2 defesas)'))PROP_MSG=(PROP_MSG?PROP_MSG+'\n':'')+'🔥 Noite dupla +'+carFmt(FORJA_NOITE.grana)}}
+ }else if(F.rua){if(A.grana>0&&carMov(A.grana,'Galera da roda: luta vs '+oc.nome))PROP_MSG='+'+carFmt(A.grana)+' da galera ('+A.aten+'% de atenção)'}else if(q[0]=='V'&&carMov(F.prem,'Prêmio: luta vs '+oc.nome))PROP_MSG='+'+carFmt(F.prem)+' de prêmio'}
  if(oc.forja&&q[0]=='V'&&!FORJA_FIXA[oc.id]){const V=FORJA_REV[oc.id],hj=carHoje();
   if(V&&hj>=V.de){if(carMov(V.grana,'Arena Forja: cachê da revanche vs '+oc.nome))PROP_MSG=(PROP_MSG?PROP_MSG+'\n':'')+'🔥 Cachê do Tadeu +'+carFmt(V.grana)+' (sem título)';
    const D=FORJA_DUPLA,ou=D.ids.find(i=>i!=oc.id);   // NOITE DUPLA: vencer os dois no mesmo dia (paga só na 1ª vitória sobre o segundo)
@@ -4674,7 +4697,10 @@ const MUSICAS=[   // arquivos na RAIZ do GitHub Pages (mesma pasta do index.html
  {nome:'100 NEUROSE - Quando você senta (Cabeludo RLK)',arq:'100 NEUROSE_ QUANDO VOCÊ SENTA O MUNDO PARA x BEAT VEM VEM ((CABELUDORLK))(MP3_160K).mp3'},
  {nome:'Tipo Kisame e Zabuza ft. TAUZ (Naruto)',arq:'TIPO KISAME e ZABUZA  ▬ι══ح ft. TAUZ  _ (Naruto) _ MHRAP(MP3_160K)_2.mp3'},
  {nome:'POCE Treino - Akhmedov, Kobe Mane, Sher Hugz',arq:'POCE TREINO - Akhmedov_ Kobe Mane_ Sher Hugz(MP3_160K).mp3'},
- {nome:'Eu Adoro Sacanagem x Maldita da Ex (Slowed)',arq:'EU ADORO SACANAGEM x MALDITA DA EX (Slowed   Reverb) _ TikTok Remix(MP3_160K).mp3'}];
+ {nome:'Eu Adoro Sacanagem x Maldita da Ex (Slowed)',arq:'EU ADORO SACANAGEM x MALDITA DA EX (Slowed   Reverb) _ TikTok Remix(MP3_160K).mp3'},
+ {nome:'Tropa dos não Rejeita',arq:'Tropa dos não Rejeita(MP3_160K).mp3'},
+ {nome:'NLE Choppa - Shotta Flow Remix ft. Blueface',arq:'NLE Choppa - Shotta Flow Remix ft. Blueface (Official Music Video)(MP3_160K).mp3'},
+ {nome:'PASSINHO ACT (Slowed to perfection)',arq:'PASSINHO ACT (Slowed to perfection)(MP3_160K).mp3'}];
 const MUS={i:0,quer:false,vol:.6,au:null,t:0,loop:false,err:false};
 function musAudio(){if(!MUS.au){const a=new Audio();a.preload='auto';a.volume=MUS.vol;a.loop=MUS.loop;a.addEventListener('ended',()=>musProx(1,true));a.addEventListener('error',()=>{MUS.quer=false;MUS.err=true;CEL.dirty=true});MUS.au=a}return MUS.au}
 function musSel(){const a=musAudio(),m=MUSICAS[MUS.i];if(m&&m.arq){MUS.err=false;a.src=encodeURIComponent(m.arq);a.load()}}
@@ -5587,7 +5613,7 @@ function bxFight(){carFixa();bxMundo(false);bxMundo(true,'box');
 function bxLutar(id){const a=BXA_ID[id];if(!a||!CAR)return;if(mmaBloq()){mmaMsg();return}
  const L=lojaLots().boxe;if(L&&L.in&&L.in.userData.bxp)bxPanelClose(L);
  try{if(MODE=='car')carPosTick(0,true)}catch(e){}
- cdAbort();spAbort();hands.forEach(h=>h.rel());bxPedir(id);bxFight();CARF=null;PROP_VOLTA=true;BXR.t30=0;bxSt(id);bxDat().al[id].n++;carSalvar()}   // volta pelo botão da tela final (startCareer)
+ cdAbort();spAbort();hands.forEach(h=>h.rel());bxPedir(id);CARRO_ACAD='boxe';bxFight();CARF=null;PROP_VOLTA=true;BXR.t30=0;bxSt(id);bxDat().al[id].n++;carSalvar()}   // volta pelo botão da tela final (startCareer)
 function bxPanelDraw(l,L){const P=L.in.userData.bxp,g=P.cv.x,a=BXA[P.k],fo=bxFora(a.id),pg=bxPago(),cf=!!(P.conf&&P.conf.k==a.id&&performance.now()<P.conf.t),D=DIFFS[a.dif],S=BXS[a.sty],sem=!pg&&!fo&&CAR.dinheiro<BX_DIARIA;
  g.clearRect(0,0,640,400);g.fillStyle='rgba(10,14,22,.94)';cdRR(g,0,0,640,400,30);g.fill();g.strokeStyle=l.cor;g.lineWidth=4;cdRR(g,2,2,636,396,28);g.stroke();
  g.textAlign='left';g.fillStyle='#fff';g.font='bold 38px sans-serif';g.fillText(a.nome,24,50,520);g.fillStyle='#f2c14e';g.font='bold 22px sans-serif';g.fillText(a.estilo,24,80,590);
@@ -5750,7 +5776,7 @@ function wrFight(){carFixa();bxMundo(false);wrMundo();
 function wrLutar(id){const a=WRA_ID[id];if(!a||!CAR)return;if(mmaBloq()){mmaMsg();return}
  const L=lojaLots().wrest;if(L&&L.in&&L.in.userData.wrp)wrPanelClose(L);
  try{if(MODE=='car')carPosTick(0,true)}catch(e){}
- cdAbort();spAbort();hands.forEach(h=>h.rel());wrPedir(id);wrFight();CARF=null;PROP_VOLTA=true;WRR.t30=0;wrSt(id);wrDat().al[id].n++;carSalvar()}
+ cdAbort();spAbort();hands.forEach(h=>h.rel());wrPedir(id);CARRO_ACAD='wrest';wrFight();CARF=null;PROP_VOLTA=true;WRR.t30=0;wrSt(id);wrDat().al[id].n++;carSalvar()}
 function wrPanelDraw(l,L){const P=L.in.userData.wrp,g=P.cv.x,a=WRA[P.k],fo=wrFora(a.id),pg=wrPago(),cf=!!(P.conf&&P.conf.k==a.id&&performance.now()<P.conf.t),D=DIFFS[a.dif],S=WRS[a.sty],sem=!pg&&!fo&&CAR.dinheiro<WR_DIARIA;
  g.clearRect(0,0,640,400);g.fillStyle='rgba(10,14,22,.94)';cdRR(g,0,0,640,400,30);g.fill();g.strokeStyle=l.cor;g.lineWidth=4;cdRR(g,2,2,636,396,28);g.stroke();
  g.textAlign='left';g.fillStyle='#fff';g.font='bold 38px sans-serif';g.fillText(a.nome,24,50,520);g.fillStyle='#e8b830';g.font='bold 22px sans-serif';g.fillText(a.estilo,24,80,590);
@@ -6008,7 +6034,7 @@ function carPropExtra(){const p=CAR.prop;if(!p)return;const have=new Set(p.lista
  CAR.lutadores.forEach(f=>{if(p.lista.length<PROP_TOT&&RUA_DES[f.id]&&ruaPend(f.id)&&forjaOk(f)&&!have.has(f.id)){p.lista.push({id:f.id,premio:carPremioF(f,eu),st:'p'});have.add(f.id);add++}});   // novos e revanches da rua entram garantidos
  if(p.lista.length<PROP_TOT){const pool=CAR.lutadores.filter(f=>forjaOk(f)&&!have.has(f.id)&&!(CAR_ROSTER_ID[f.id].forja)).sort((a,b)=>Math.abs(a.r-eu)-Math.abs(b.r-eu)).slice(0,14);
   while(p.lista.length<PROP_TOT&&pool.length){const f=pool.splice(Math.floor(Math.random()*pool.length),1)[0];p.lista.push({id:f.id,premio:carPremioF(f,eu),st:'p'});add++}}
- while(p.lista.length>PROP_TOT){const k=p.lista.findIndex(o=>o.st=='p'&&!(CAR_ROSTER_ID[o.id]&&CAR_ROSTER_ID[o.id].forja)&&!RUA_DES[o.id]);if(k<0)break;p.lista.splice(k,1)}   // abre vaga pros convites da Forja
+ while(p.lista.length>PROP_TOT){let k=p.lista.findIndex(o=>o.st=='p'&&!(CAR_ROSTER_ID[o.id]&&CAR_ROSTER_ID[o.id].forja)&&!RUA_DES[o.id]);if(k<0)k=p.lista.findIndex(o=>o.st=='p'&&!(CAR_ROSTER_ID[o.id]&&CAR_ROSTER_ID[o.id].forja));if(k<0)break;p.lista.splice(k,1)}   // abre vaga pros convites da Forja
  if(add){p.lista.sort((a,b)=>rr(a.id)-rr(b.id));carSalvar()}}
 function forjaDevida(){return CAR.lutadores.filter(f=>{const c=CAR_ROSTER_ID[f.id];return c&&c.forja&&forjaConv(f.id)&&!forjaVenceu(f.id)}).sort((a,b)=>a.r-b.r)[0]}
 function forjaFeitas(){return['forja1','forja2','forja3'].filter(id=>CAR.cartel.some(x=>x.op&&x.op.id==id&&x.res=='V')).length}
@@ -6103,7 +6129,7 @@ function celPropCard(y,h){const g=CEL.cx,p=CAR.prop,np=p.marcada?0:p.lista.filte
 function celProp(){const g=CEL.cx,p=CAR.prop;carPropOk();celHdr('PROPOSTAS',()=>celGo('home'));const fm=carPropFama(),RK=carRank();
  const tab=CEL.ptab==1?1:0,EV=['rua','forja'],ev=EV[tab];   // aba 0 = BRIGA DE RUA, aba 1 = ARENA FORJA (cada uma com o seu descanso de 20 min)
  celRR(g,24,146,464,68,18);g.fillStyle=CELC.card2;g.fill();
- if(forjaDevida()||forjaFeitas())celT('🔥 Arena Forja: '+(forjaDevida()?'revanche do Tadeu':forjaFeitas()+'/3 lutas'),40,166,18,CELC.ouro,'left','bold',300);
+ if(forjaDevida()||forjaFeitas())celT('🔥 Arena Forja: '+(forjaDevida()?'defesas · 2 no dia = +1.000':forjaFeitas()+'/3 lutas'),40,166,18,CELC.ouro,'left','bold',300);
  celT('Recusas hoje: '+p.recHoje+'/'+PROP_REC_MAX,40,190,25,p.recHoje>=PROP_REC_MAX?CELC.D:CELC.tx,'left','bold',230);
  celT(PROP_FAMA[fm],472,fm?180:190,22,fm?CELC.D:CELC.sub,'right','bold',230);if(fm)celT('prêmios -'+fm*5+'%',472,204,18,CELC.sub,'right','normal',230);
  let y=222;
@@ -6123,7 +6149,7 @@ function celProp(){const g=CEL.cx,p=CAR.prop;carPropOk();celHdr('PROPOSTAS',()=>
   celRR(g,24,yy,464,ch,20);g.fillStyle=st=='r'?'#10151f':(j%2?CELC.card:'#10192a');g.fill();if(st=='a'){g.strokeStyle=CELC.ac;g.lineWidth=3;g.stroke()}
   g.save();g.globalAlpha=st=='r'?.45:1;celRetrato(g,92,yy+42,36,o.id);
   celT(c.nome,150,yy+28,26,CELC.tx,'left','bold',330);
-  celT('#'+f.pos+' · '+f.v+'V '+f.d+'D · '+(RUA_DES[o.id]&&ruaPend(o.id)?(RUA_DES[o.id].t=='rev'?'quer revanche':'lutador novo'):FORJA_REV[o.id]&&!forjaVenceu(o.id)?'revanche':(j%PROP_N==0?'igual a você':j%PROP_N==1?'duro':j%PROP_N==2?'perigoso':'chefão')),150,yy+52,20,CELC.sub,'left','normal',330);{const fx=FORJA_FIXA[o.id];if(fx){celT('GANHA '+carFmt(fx.ganha)+' 🏆',150,yy+78,24,CELC.ouro,'left','bold',330);celT('PERDE '+carFmt(fx.perde)+' · valores fixos',150,yy+102,20,CELC.sub,'left','normal',330)}else celT('GANHA '+carFmt(o.premio)+(c.forja?' +🔥':''),150,yy+78,24,CELC.ouro,'left','bold',330)}g.restore();
+  celT('#'+f.pos+' · '+f.v+'V '+f.d+'D · '+(RUA_DES[o.id]&&ruaPend(o.id)?(RUA_DES[o.id].t=='rev'?'quer revanche':'lutador novo'):FORJA_FIXA[o.id]?(FORJA_FIXA[o.id].defesa?'defesa de cinturão':'luta do cinturão'):FORJA_REV[o.id]&&!forjaVenceu(o.id)?'revanche':(j%PROP_N==0?'igual a você':j%PROP_N==1?'duro':j%PROP_N==2?'perigoso':'chefão')),150,yy+52,20,CELC.sub,'left','normal',330);{const fx=FORJA_FIXA[o.id];if(fx){celT('GANHA '+carFmt(fx.ganha)+(fx.defesa?' 🛡️':' 🏆'),150,yy+78,24,CELC.ouro,'left','bold',330);celT('PERDE '+carFmt(fx.perde)+' · valores fixos',150,yy+102,20,CELC.sub,'left','normal',330)}else celT('GANHA '+carFmt(o.premio)+(c.forja?' +🔥':''),150,yy+78,24,CELC.ouro,'left','bold',330)}g.restore();
   const by=yy+ch-54;
   if(st=='a')celT('ACEITA',256,by+40,28,CELC.ac,'center','bold');else if(st=='r')celT('RECUSADA',256,by+40,26,CELC.sub,'center','bold');
   else{const sem=p.recHoje>=PROP_REC_MAX;
@@ -7788,7 +7814,7 @@ function cityStart(){ctBase();cityG.visible=true;CITY.on=true;CITY.gym=null;CITY
  const ff=CITY.ff&&CITY.arena>=0;CITY.ff=false;
  if(ff){const e=EST[CITY.arena];if(CARRO.g){CARRO.x=e.spawn.x;CARRO.z=e.spawn.z;CARRO.yaw=e.spawn.yaw;CARRO.g.position.set(e.spawn.x,0,e.spawn.z);CARRO.g.rotation.set(0,e.spawn.yaw,0);CARRO.g.visible=true}
   rig.position.set(e.door.x+2.5,0,e.door.z-2.5);if(!VRON){yaw=Math.atan2(-(e.spawn.x-rig.position.x),-(e.spawn.z-rig.position.z))}}
- else{CITY.arena=-1;if(!postoMorto()){cityHomeCar(true);const cp=CAR&&CAR.carp;if(cp&&CARRO.g&&!DRV.on){CARRO.x=cp.x;CARRO.z=cp.z;CARRO.yaw=cp.yaw;CARRO.g.position.set(cp.x,0,cp.z);CARRO.g.rotation.set(0,cp.yaw,0);CARRO.g.visible=true}}}   // restaura o carro no lugar onde foi deixado
+ else{CITY.arena=-1;if(!postoMorto()){cityHomeCar(true);carroRestaura()}}   // restaura o carro no lugar onde foi deixado
  CITY.wp.x=rig.position.x;CITY.wp.z=rig.position.z;if(typeof GPS!='undefined')GPS.ov=false}
 function cdWalkVia(N,tx,tz,sp,dt){if(lbTier().id!='fazenda'&&(N.pz<6)!=(tz<6)){const a=N.pz<6?[[0,4.8],[0,7.8]]:[[0,7.8],[0,4.8]],i=N._wi||0;if(i<2){if(cdWalk(N,a[i][0],a[i][1],sp,dt))N._wi=i+1;return false}}N._wi=0;return cdWalk(N,tx,tz,sp,dt)}
 // ======================= GPS DO CARRO =======================
