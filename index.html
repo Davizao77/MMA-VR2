@@ -1221,7 +1221,12 @@ const DIFFS=[{n:'Super fácil',hp:.8,st:.7,ag:.6,dm:.7,bk:0},{n:'Fácil',hp:2.5,
 {n:'Boxe 3 Espelho',hp:18,st:3.8,ag:2.7,dm:2,bk:1,bd:.04,sq:3.8},
 {n:'Wrestling 1 Guindaste',hp:17,st:4.4,ag:2.7,dm:1,bk:0},
 {n:'Wrestling 2 Relâmpago',hp:16,st:4,ag:3.1,dm:1,bk:0},
-{n:'Wrestling 3 Âncora',hp:17,st:4.2,ag:2.8,dm:1,bk:0}];DIFFS.forEach(d=>{d.hp=Math.pow(d.hp,.85);d.st=Math.pow(d.st,.85);d.dm*=1.2;d.ag=d.ag<1?d.ag*1.15:d.ag*1.15+(d.ag-1)*.2});DIFFS.forEach(d=>{if(/^(Boxe|Wrestling)/.test(d.n)){d.hp*=1.35;d.st*=1.2;d.ag*=1.15;d.dm*=1.25}});   // curva de vida/vigor mais suave; dano dos inimigos +20%; agressividade maior e crescendo com a dificuldade
+{n:'Wrestling 3 Âncora',hp:17,st:4.2,ag:2.8,dm:1,bk:0},
+{n:'Circuito 1 Renan',hp:15,st:4.2,ag:3.1,dm:1.4,bk:1,bd:.07,sq:3}];
+// 22: RENAN GUILHOTINA, faixa roxa de jiu (8-1, tudo por finalização). Lógica de vida real: jiu-jitsuka de circuito amador. No CHÃO é melhor que o Alto-Forno
+// (queda e reversão mais rápidas, tenta queda bem mais, segura 20 s); em pé e na resistência fica um pouco abaixo dele: aguenta menos dano (hp 15 x 19) e bate mais fraco (dm 1,4 x 1,9),
+// mas tem fôlego de sobra (st 4,2 x 3,6: cardio de quem faz rolo) e persegue mais (ag 3,1 x 3). Não é calibrado em cima do jogador.
+DIFFS.forEach(d=>{d.hp=Math.pow(d.hp,.85);d.st=Math.pow(d.st,.85);d.dm*=1.2;d.ag=d.ag<1?d.ag*1.15:d.ag*1.15+(d.ag-1)*.2});DIFFS.forEach(d=>{if(/^(Boxe|Wrestling)/.test(d.n)){d.hp*=1.35;d.st*=1.2;d.ag*=1.15;d.dm*=1.25}});   // curva de vida/vigor mais suave; dano dos inimigos +20%; agressividade maior e crescendo com a dificuldade
 let DIF=DIFFS[1],DIFI=1;   // hp = divisor do dano: .8 / 2.5 / 4.8 / 9.6 / 14 — Fácil é o padrão ao abrir (índice 1)
 const aimV=new THREE.Vector3(),aimV2=new THREE.Vector3(),gdV=new THREE.Vector3(),bdV=new THREE.Vector3(),ikZb=new THREE.Vector3(),ikPz=new THREE.Vector3();
 const wl={d:9,nx:0,nz:1};
@@ -1229,7 +1234,7 @@ function wallNear(x,z){const N=VRON?16:8,Wd=VRON?ROOM_R:3.4;let b=-9;for(let i=0
 // ======================= LUTA AGARRADA (Parte 1/4) =======================
 // Nível de luta agarrada de cada lutador: 0 = jamais (não sabe), 1 = baixo (desajeitado), 2 = médio (reverte só pra se levantar), 3 = alto (reverte pra te surrar e tenta te derrubar).
 // Lutadores da Arena Forja agarram melhor que os da rua. Partes 2-4 usam enemy.grLv pra decidir quedas, reversões e gasto de energia.
-const GR_LV={rua1:0,rua2:1,rua3:1,rua4:2,forja1:2,forja2:3,forja3:3,forja4:3,forja5:3,forja6:3,forja7:3,rua5:1,rua6:2,rua7:1,rua8:2};
+const GR_LV={rua1:0,rua2:1,rua3:1,rua4:2,forja1:2,forja2:3,forja3:3,forja4:3,forja5:3,forja6:3,forja7:3,rua5:1,rua6:2,rua7:1,rua8:2,cage1:3};
 const GR_DIF=[0,1,1,2,2,0,1,1,2,2,3,3,3,3,3,3,0,0,0];   // sem carreira: nível pela dificuldade (mesma ordem de DIFFS)
 const GR_NOME=['Nenhum','Baixo','Médio','Alto'];
 const GR_BD=[.05,.3,.65,1],GR_NT=[0,.3,.65,.95];   // por nível de luta agarrada (0-3): GR_BD = tendência de mirar na barriga sem ter percebido nada (nível baixo quase só no rosto); GR_NT = chance de PERCEBER que a sua guarda cobre só o rosto/só a barriga
@@ -1239,8 +1244,12 @@ function grHold(){try{if(WRR.on&&typeof enemy!='undefined'&&enemy)return wrS(ene
 const GR_DESC=['Não sabe lutar agarrado. Se cair, só se debate.','Tenta, mas é desajeitado. Raramente reverte.','Se você derruba, ele reverte só pra se levantar.','Chato! Reverte pra te surrar e tenta te derrubar.'];
 function grLevelNow(){try{if(WRR.on)return 3}catch(e){}try{if(typeof CARF!='undefined'&&CARF&&GR_LV[CARF.op]!=null)return GR_LV[CARF.op]}catch(e){}return GR_DIF[DIFI]!=null?GR_DIF[DIFI]:1}
 // ESTILO DE LUTA (quem luta no chão): 0 trocador (nunca tenta queda; no máximo reverte), 1 equilibrado (queda rara), 2/3 grappler (tenta queda, mas com calma)
-const GR_ST={rua1:0,rua2:0,rua3:0,rua4:1,forja1:0,forja2:1,forja3:2,forja4:1,forja5:2,forja6:2,forja7:2,rua5:0,rua6:1,rua7:0,rua8:1};
-const GR_TK={rua1:0,rua2:0,rua3:0,rua4:1,forja1:0,forja2:1,forja3:3,forja4:1,forja5:2,forja6:3,forja7:2,rua5:0,rua6:2,rua7:0,rua8:1};   // nível de QUEDA (0 = nunca tenta)
+const GR_ST={rua1:0,rua2:0,rua3:0,rua4:1,forja1:0,forja2:1,forja3:2,forja4:1,forja5:2,forja6:2,forja7:2,rua5:0,rua6:1,rua7:0,rua8:1,cage1:3};
+const GR_TK={rua1:0,rua2:0,rua3:0,rua4:1,forja1:0,forja2:1,forja3:3,forja4:1,forja5:2,forja6:3,forja7:2,rua5:0,rua6:2,rua7:0,rua8:1,cage1:3};   // nível de QUEDA (0 = nunca tenta)
+// MULTIPLICADORES POR LUTADOR no chão (padrão 1): spd = velocidade da queda e da reversão (nível 3 já dá x1,4); rv = tempo pra tentar reverter (menor = reverte mais cedo);
+// tki = intervalo entre tentativas de queda (menor = tenta mais); tkp = chance de tentar quando chega a hora. Só o Renan tem (jiu-jitsuka: a queda é o plano de jogo dele).
+const GR_X={cage1:{spd:1.3,rv:.7,tki:.55,tkp:1.3}};
+function grXm(k){try{if(typeof CARF!='undefined'&&CARF&&GR_X[CARF.op])return GR_X[CARF.op][k]||1}catch(e){}return 1}
 const GR_TK_DIF=[0,0,1,1,2,0,0,1,1,0,1,2,1,2,3,2];   // sem carreira: pela dificuldade (mesma ordem de DIFFS)
 function tkLevelNow(){try{if(WRR.on)return 3}catch(e){}try{if(typeof CARF!='undefined'&&CARF&&GR_TK[CARF.op]!=null)return GR_TK[CARF.op]}catch(e){}return GR_TK_DIF[DIFI]!=null?GR_TK_DIF[DIFI]:0}
 function grTkTxt(id){const q=GR_TK[id];return q==null?'':q<1?'Trocador: nunca tenta queda.':q==1?'Equilibrado: só às vezes tenta queda.':q==2?'Lutador completo: tenta queda de vez em quando.':'Grappler: a queda é a especialidade dele.'}
@@ -1343,14 +1352,14 @@ class Enemy{
    m.visible=a[n]>.02;if(m.visible){m.position.copy(this.P['h'+n].p);m.material.opacity=.42*a[n]*(.75+.25*Math.sin(this.t*14));m.scale.setScalar(1+.12*Math.sin(this.t*10))}}}
  tkTick(dt,tp,dist){if(BXR.on){this.tk=null;return}
    const P=this.P,pel=P.pelvis,ch=P.chest,tl=tkLevelNow(),k=this.tk;
-   if(this.nextTk==null)this.nextTk=WRR.on?wrS(this).tk0:14+Math.random()*16;
+   if(this.nextTk==null)this.nextTk=WRR.on?wrS(this).tk0:(14+Math.random()*16)*grXm('tki');
    if(!k){
     if(this.nextTk>0)this.nextTk-=dt;
     if(this.nextTk>0||tl<1||MODE!='fight'||RD.ph!='fight'||this.st!='fight'||this.rest||this.atk||this.gp||this.hn>0||PL.gnd||PL.hp<=0||pel.p.y<.8||this.dz>0||this.bal<.6||this.stam<(WRR.on?22:45)||dist<.6||dist>1.3)return;
-    this.nextTk=(WRR.on?wrS(this).tkI:[0,60,42,30][tl])*(.7+Math.random()*.6);   // só quem luta no chão tenta (trocador nunca) e bem menos vezes
-    if(!WRR.on&&Math.random()>[0,.2,.35,.5][tl])return;
+    this.nextTk=(WRR.on?wrS(this).tkI:[0,60,42,30][tl])*(.7+Math.random()*.6)*grXm('tki');   // só quem luta no chão tenta (trocador nunca) e bem menos vezes
+    if(!WRR.on&&Math.random()>Math.min(1,[0,.2,.35,.5][tl]*grXm('tkp')))return;
     this.tk={t:0,ph:'wind',dx:0,dz:0,ar:0};this.grCost(34);hands.forEach(h=>buzz(h,.6,80));snd(170,.45);dbg('INIMIGO VAI NAS PERNAS (segure ele!)');return}
-   const sp=(GR_SPD[this.grLv]||1)*(WRR.on?WRR.spd:1);k.t+=dt*sp;   // nível de luta agarrada muda a velocidade da queda
+   const sp=(GR_SPD[this.grLv]||1)*grXm('spd')*(WRR.on?WRR.spd:1);k.t+=dt*sp;   // nível de luta agarrada muda a velocidade da queda
    const dx=tp.x-pel.p.x,dz=tp.z-pel.p.z,d=Math.hypot(dx,dz)||1,nx=dx/d,nz=dz/d;
    if(k.ph=='res'){if(k.t>.9)this.tk=null;return}
    if(this.st!='fight'||this.dz>0||this.bal<.1||PL.gnd){this.tk=null;return}   // atordoado/derrubado: aborta
@@ -1390,9 +1399,9 @@ class Enemy{
    if(this.rvT==null)this.rvT=[0,7,4.5,3][lv]*(WRR.on?wrS(this).rv:1)*(.7+Math.random()*.6);
    if(!(down&&this.mnt&&!PL.gnd&&this.dz<=0&&RD.ph=='fight'&&!this.rest))return;
    if((this.rvT-=dt)>0||this.stam<15)return;
-   this.rvT=[0,12,8,5][lv]*(WRR.on?wrS(this).rv:1)*(.7+Math.random()*.6);
+   this.rvT=[0,12,8,5][lv]*grXm('rv')*(WRR.on?wrS(this).rv:1)*(.7+Math.random()*.6);
    if(Math.random()>[0,.5,.8,1][lv])return;
-   {const hn=Math.random()<.5?'L':'R';this.gr={ph:'reach',t:0,T:2.4/((GR_SPD[lv]||1)*(WRR.on?WRR.spd:1)),n:hn};this.grCost(14);hands.forEach(h=>buzz(h,.6,80));snd(150,.45);dbg('INIMIGO VAI NO SEU ROSTO (segure a mão dele!)');
+   {const hn=Math.random()<.5?'L':'R';this.gr={ph:'reach',t:0,T:2.4/((GR_SPD[lv]||1)*grXm('spd')*(WRR.on?WRR.spd:1)),n:hn};this.grCost(14);hands.forEach(h=>buzz(h,.6,80));snd(150,.45);dbg('INIMIGO VAI NO SEU ROSTO (segure a mão dele!)');
     // se você já estava segurando esse braço dele, ele se solta sozinho: você precisa abrir a mão e segurar de novo antes que ele reverta
     const arm=[P['h'+hn],P['fa'+hn],P['ua'+hn]];let sol=false;for(const h of hands){if(h.held&&arm.includes(h.held)){h.rel();h.rgL=1;sol=true;buzz(h,1,160)}}
     if(sol){snd(210,.5);grFlash('ELE SE SOLTOU!','Segure a mão dele de novo','#ffb020',1.4);dbg('A MÃO DELE SE SOLTOU DA SUA (abra e segure de novo)')}return}}
@@ -1817,7 +1826,8 @@ class Hand{
   const nw=FT,R=32,i=this.ri%R;this.pt[i]=nw;this.px[i*3]=L.x;this.px[i*3+1]=L.y;this.px[i*3+2]=L.z;
   let sp=0;for(let k=2;k<=5&&k<=this.ri;k++){const j=(i+R-k)%R,d=nw-this.pt[j];if(d>=.016||k==5||k==this.ri){if(d>.004)sp=Math.hypot(L.x-this.px[j*3],L.y-this.px[j*3+1],L.z-this.px[j*3+2])/d;break}}
   this.ps[i]=Math.min(sp,40);this.ri++;let pk=0,a1=-1,a2=-1,n=0,mn=1e9;for(let k=1;k<=R&&k<=this.ri;k++){const q=(this.ri-k)%R;if(nw-this.pt[q]>.15)break;const c=this.ps[q];n++;mn=Math.min(mn,c);if(n>=3){const m3=Math.min(c,a1,a2);if(m3>pk)pk=m3}a2=a1;a1=c}if(n<3)pk=n?mn:0;this.pk=pk}   // pico = maior velocidade MANTIDA por 3 amostras seguidas nos últimos .15 s (glitch de 1-2 quadros do controle não vira soco de 16 m/s)
- grab(){if(MODE!='fight')return;let best=null,bd=.14;for(const p of GR){const d=p.dist(this.pos);if(d<bd){bd=d;best=p}}
+ grab(){if(MODE!='fight')return;if(Math.max(this.v.length(),this.pk||0)>3)return;   // soco rápido (cruzado/gancho) com o gatilho/grip apertado sem querer NÃO agarra: deixa o golpe contar dano
+  let best=null,bd=.14;for(const p of GR){const d=p.dist(this.pos);if(d<bd){bd=d;best=p}}
   if(!best)return;const lp=vA.copy(this.pos).sub(best.p).applyQuaternion(qT.copy(best.q).conjugate());
   const j=new A.btPoint2PointConstraint(this.b,best.b,new A.btVector3(0,0,0),new A.btVector3(lp.x,lp.y,lp.z));
   try{const st=j.get_m_setting();st.set_m_tau(.8);st.set_m_damping(1);st.set_m_impulseClamp(best.owner?best.owner.mass*(/^(ua|fa|h[LR])/.test(best.name)?.03:/^(th|sh|ft)/.test(best.name)?.06:.12):40)}catch(e){}
@@ -4118,7 +4128,8 @@ const CAR_ROSTER=[
  {id:'forja7',nome:'Alto-Forno',estilo:'Campeão da Forja',n:100,dif:15,forja:1},
  // ---- DIA 04/11: lutadores NOVOS da rua (entram a partir das datas de PROP_FORA) ----
  {id:'rua5',nome:'Tubarão do Cais',estilo:'Briga de rua',n:54,dif:7},{id:'rua6',nome:'Cobra Coral',estilo:'Briga de rua',n:62,dif:8},
- {id:'rua7',nome:'Facão do Mercado',estilo:'Briga de rua',n:58,dif:7},{id:'rua8',nome:'Pit do Viaduto',estilo:'Briga de rua',n:66,dif:8}];
+ {id:'rua7',nome:'Facão do Mercado',estilo:'Briga de rua',n:58,dif:7},{id:'rua8',nome:'Pit do Viaduto',estilo:'Briga de rua',n:66,dif:8},
+ {id:'cage1',nome:'Renan Guilhotina',estilo:'Finalizador · faixa roxa',n:60,dif:22,est:4}];   // Cage Regional (est:4): 8-1, só finalizações
 // recompensa EXTRA por vencer cada um (além do prêmio normal da proposta): grana + seguidores + título
 // CONVITE: 1 = jogador convidado pro evento (o Claude muda isso no index.html depois de ler o JSON de resultados). Sem convite o lutador NÃO aparece nas propostas nem como rival.
 const FORJA_CONVITE={forja1:1,forja2:1,forja3:1,forja4:1,forja5:0,forja6:1,forja7:0};   // dia 3: passou nas 3 (Fagulha, Martelo, Bigorna) -> Cinza liberado; Fornalha só depois de vencer o Cinza (forjaConv)
@@ -4139,17 +4150,19 @@ const FORJA_DUPLA={de:'2026-11-04',ids:['forja3','rua4'],grana:1000};
 // O cartão do celular mostra os dois valores, e o que cai na conta é igual ao que está escrito. Depois de vencer, o convite fecha (não repete os 15 mil).
 const FORJA_FIXA={forja7:{de:'2026-11-06',ganha:15000,perde:600,titulo:'Campeão da Arena Forja'},
  // DEFESAS DE CINTURÃO (cartaz de segunda, DM com o Tadeu): vitória = EXATAMENTE o valor; sem vitória = R$ 0 (o Tadeu não falou em bolsa de derrota). Valores fixos, sem atenção/bônus.
- forja1:{de:'2026-11-09',ganha:600,perde:0,defesa:1},forja2:{de:'2026-11-09',ganha:1500,perde:0,defesa:1},forja4:{de:'2026-11-09',ganha:2500,perde:0,defesa:1},forja6:{de:'2026-11-09',ganha:3500,perde:0,defesa:1}};
+ forja1:{de:'2026-11-09',ganha:600,perde:0,defesa:1},forja2:{de:'2026-11-09',ganha:1500,perde:0,defesa:1},forja4:{de:'2026-11-09',ganha:2500,perde:0,defesa:1},forja6:{de:'2026-11-09',ganha:3500,perde:0,defesa:1},
+ // CAGE REGIONAL (DM com o scout): 800 de ajuda de custo SEMPRE + 1.200 se vencer. Vitória = exatamente 2.000; sem vitória = exatamente 800.
+ cage1:{de:'2026-11-11',ganha:2000,perde:800,circ:1}};
 // NOITE DUPLA: vencer 2 defesas DIFERENTES no mesmo dia = +1.000 (paga uma vez por dia)
 const FORJA_NOITE={de:'2026-11-09',grana:1000};
 // venceu = já ganhou dele (nas revanches só conta vitória a partir da data 'de', senão a luta antiga contaria)
 const forjaVenceu=id=>{const v=FORJA_REV[id]||FORJA_FIXA[id],lim=v&&carHoje()>=v.de?v.de:'';return CAR.cartel.some(x=>x.op&&x.op.id==id&&x.res=='V'&&(!lim||x.dia>=lim))};
 const carPremioF=(f,eu)=>{const x=FORJA_FIXA[f.id];if(x)return x.ganha;const v=FORJA_REV[f.id];return v&&v.premio&&carHoje()>=v.de?v.premio:carPropPremio(f.r,eu)};
 // RUA: lutadores NOVOS (t:'novo') e quem quer REVANCHE (t:'rev') entram garantidos nas propostas de rua a partir da data 'de', até você lutar com eles
-const RUA_DES={rua1:{t:'rev',de:'2026-11-04'},rua3:{t:'rev',de:'2026-11-04'},rua5:{t:'novo',de:'2026-11-04'},rua6:{t:'novo',de:'2026-11-04'},rua7:{t:'novo',de:'2026-11-05'},rua8:{t:'novo',de:'2026-11-06'}};
+const RUA_DES={rua1:{t:'rev',de:'2026-11-04'},rua3:{t:'rev',de:'2026-11-04'},rua5:{t:'novo',de:'2026-11-04'},rua6:{t:'novo',de:'2026-11-04'},rua7:{t:'novo',de:'2026-11-05'},rua8:{t:'novo',de:'2026-11-06'},cage1:{t:'cage',de:'2026-11-11'}};
 const ruaPend=id=>{const o=RUA_DES[id];if(!o||!CAR)return false;try{return carHoje()>=o.de&&!foraAgora(id)&&!CAR.cartel.some(x=>x.op&&x.op.id==id&&x.dia>=o.de)}catch(e){return false}};
 const forjaConv=id=>{if(foraAgora(id))return 0;if(!FORJA_SO[id])return 0;if(FORJA_FIXA[id])return carHoje()>=FORJA_FIXA[id].de&&!forjaVenceu(id)?1:0;if(FORJA_REV[id])return 1;if(id=='forja7')return forjaMereceu7()?1:0;if(FORJA_CONVITE[id])return 1;try{return id=='forja5'&&CAR&&CAR.cartel.some(x=>x.op&&x.op.id=='forja4'&&x.res=='V')?1:0}catch(e){return 0}};   // CONVIDADO (3 nocautes no round 1 numa noite): Fagulha, Martelo e Bigorna liberados; Cinza e Fornalha só depois
-const forjaOk=f=>{if(foraAgora(f.id))return false;const c=CAR_ROSTER_ID[f.id];return !(c&&c.forja)||!!forjaConv(f.id)};
+const forjaOk=f=>{if(foraAgora(f.id))return false;{const x=FORJA_FIXA[f.id];if(x&&x.circ&&(carHoje()<x.de||CAR.cartel.some(c=>c.op&&c.op.id==f.id&&c.dia>=x.de)))return false}const c=CAR_ROSTER_ID[f.id];return !(c&&c.forja)||!!forjaConv(f.id)};
 const FORJA_R={forja1:{grana:600,titulo:'Faísca Viva'},forja2:{grana:1500,titulo:'Quebra-Ossos'},forja3:{grana:1200,titulo:'Derrubador de Muralha'},forja4:{grana:2500,titulo:'Sombra da Forja'},forja5:{grana:6000,titulo:'Campeão da Arena Forja'},forja6:{grana:3500,titulo:'Quebra-Corrente'},forja7:{grana:15000,titulo:'Campeão da Arena Forja'}};
 const CAR_EVENTOS=[{dia:'2026-10-31',v:'forja7',l:'forja5',m:'Nocaute'}];   // lutas marcadas do circuito (acontecem uma vez, no dia)
 const CAR_INVICTOS={forja7:1};   // não perde nas lutas simuladas do circuito (só pra você, se merecer)
@@ -4235,14 +4248,14 @@ addEventListener('pagehide',()=>carPosTick(0,true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)try{carPosTick(0,true)}catch(e){}});
 // grava onde o carro está AGORA (antes de entrar no sparring/luta da academia): o salvamento normal só roda a cada 3 s e o carro voltava pro pátio
 let CARRO_ACAD='';   // academia (boxe/wrest) onde a luta aconteceu: se o carro salvo não puder voltar pro lugar, ele fica na entrada dela
-function carroEntrada(id){try{const L=lojaLots()[id];if(!L||!L.door)return null;return{x:Math.round((L.door.x+6)*100)/100,z:Math.round((L.door.z-7)*100)/100}}catch(e){return null}}
+function carroEntrada(id){try{const L=lojaLots()[id];if(!L||!L.door)return null;if(id=='boxe')return{x:Math.round((L.door.x+10)*100)/100,z:Math.round((L.door.z-9.5)*100)/100};return{x:Math.round((L.door.x+6)*100)/100,z:Math.round((L.door.z-7)*100)/100}}catch(e){return null}}
 function carroRestaura(){try{if(!CAR||!CARRO.g||DRV.on)return;const cp=CAR.carp;let x,z,yw;
- const ok=cp&&isFinite(+cp.x)&&isFinite(+cp.z)&&!(typeof lojaHit=='function'&&lojaHit(+cp.x,+cp.z,2));
+ const ok=cp&&isFinite(+cp.x)&&isFinite(+cp.z)&&!(typeof lojaHit=='function'&&lojaHit(+cp.x,+cp.z,2)&&!(typeof bxLotIn=='function'&&bxLotIn(+cp.x,+cp.z)));
  if(ok){x=+cp.x;z=+cp.z;yw=isFinite(+cp.yaw)?+cp.yaw:CARRO.yaw}
  else if(CARRO_ACAD){const e=carroEntrada(CARRO_ACAD);if(e){x=e.x;z=e.z;yw=cp&&isFinite(+cp.yaw)?+cp.yaw:CARRO.yaw}}
  CARRO_ACAD='';
  if(x===undefined)return;
- CARRO.x=x;CARRO.z=z;CARRO.yaw=yw;CARRO.g.position.set(x,0,z);CARRO.g.rotation.set(0,yw,0);CARRO.g.visible=true;if(LB.hid)LB.hid.delete(CARRO.g);
+ CARRO.x=x;CARRO.z=z;CARRO.yaw=yw;CARRO.g.position.set(x,typeof Ht=='function'?Ht(x,z):0,z);CARRO.g.rotation.set(0,yw,0);CARRO.g.visible=true;if(LB.hid)LB.hid.delete(CARRO.g);
  CAR.carp={x:Math.round(x*100)/100,z:Math.round(z*100)/100,yaw:Math.round(yw*100)/100}}catch(e){try{dbg('carro restaura: '+e)}catch(_){}}}
 function carFixa(){try{if(CAR&&CARRO.g&&!DRV.on&&isFinite(CARRO.x)&&isFinite(CARRO.z)){CAR.carp={x:Math.round(CARRO.x*100)/100,z:Math.round(CARRO.z*100)/100,yaw:Math.round(CARRO.yaw*100)/100};carSalvar()}}catch(e){}}
 function carModel(){const vr=R.xr.isPresenting,m=[],L=[];
@@ -4292,7 +4305,7 @@ function carLutaFim(m){const F=CARF;CARF=null;if(!F||!CAR||MODE!='fight')return;
  const FX=FORJA_FIXA[F.op],FXM=!!(FX&&F.prem!=null&&CAR.prop&&CAR.prop.marcada&&CAR.prop.marcada.id==F.op);   // luta de cinturão marcada pelo celular: VALOR FIXO
  const A0=F.rua?propRua(F,q,RD.n):{aten:0,grana:0,seg:0},A=FXM?Object.assign({},A0,{grana:q[0]=='V'?FX.ganha:FX.perde}):A0;
  if(F.prem!=null&&CAR.prop&&CAR.prop.marcada&&CAR.prop.marcada.id==F.op){CAR.prop.marcada=null;CAR.prop.lut++;if(FXM){const vit=q[0]=='V';
-  if(A.grana>0){if(carMov(A.grana,vit?(FX.defesa?'Arena Forja: DEFESA vs '+oc.nome:'Arena Forja: CINTURÃO vs '+oc.nome):'Arena Forja: bolsa vs '+oc.nome))PROP_MSG=vit?(FX.defesa?'🛡️ Defesa de cinturão! +'+carFmt(A.grana):'🏆 CINTURÃO! +'+carFmt(A.grana)+' · Título: '+FX.titulo):'+'+carFmt(A.grana)+' de bolsa (sem vitória)'}
+  if(A.grana>0){if(carMov(A.grana,vit?(FX.circ?'Cage Regional: vitória vs '+oc.nome:FX.defesa?'Arena Forja: DEFESA vs '+oc.nome:'Arena Forja: CINTURÃO vs '+oc.nome):(FX.circ?'Cage Regional: ajuda de custo vs '+oc.nome:'Arena Forja: bolsa vs '+oc.nome)))PROP_MSG=vit?(FX.circ?'🥊 Vitória no Cage Regional! +'+carFmt(A.grana)+' (800 de ajuda + 1.200 pela vitória)':FX.defesa?'🛡️ Defesa de cinturão! +'+carFmt(A.grana):'🏆 CINTURÃO! +'+carFmt(A.grana)+' · Título: '+FX.titulo):'+'+carFmt(A.grana)+(FX.circ?' de ajuda de custo (sem vitória)':' de bolsa (sem vitória)')}
   else PROP_MSG='Sem cachê (sem vitória)';
   if(vit&&FX.defesa){const hj=carHoje(),dd=Object.keys(FORJA_FIXA).filter(i=>FORJA_FIXA[i].defesa&&i!=oc.id&&CAR.cartel.some(x=>x.op&&x.op.id==i&&x.res=='V'&&x.dia==hj));
    if(hj>=FORJA_NOITE.de&&dd.length==1&&!CAR.cartel.some(x=>x.op&&x.op.id==oc.id&&x.res=='V'&&x.dia==hj)){if(carMov(FORJA_NOITE.grana,'Arena Forja: noite dupla (2 defesas)'))PROP_MSG=(PROP_MSG?PROP_MSG+'\n':'')+'🔥 Noite dupla +'+carFmt(FORJA_NOITE.grana)}}
@@ -4790,7 +4803,7 @@ const socNaoLidas=()=>CAR&&CAR.social?CAR.social.dm.filter(m=>!m.lido).length:0;
 // Todos os fãs são adultos (maiores de 18 anos) e fictícios.
 const FA_NOMES={lari:['Larissa','f',24],mateus:['Mateus','m',27],bia:['Beatriz','f',22],rafa:['Rafael','m',29],duda:['Eduarda','f',21],gui:['Guilherme','m',25],nanda:['Fernanda','f',28],kaio:['Kaio','m',23],pri:['Priscila','f',26],leo:['Leonardo','m',31],carol:['Carolina','f',24],theo:['Theo','m',22],jess:['Jéssica','f',27],vini:['Vinícius','m',26],sol:['Sol','f',23],dani:['Daniela','f',30],tati:['Tatiana','f',25],caua:['Cauã','m',21]};
 // @ DOS LUTADORES (fixos) e importância das conversas do DIRECT: 0 evento/presidente, 1 lutadores, 2 profissionais (treino, imprensa, patrocínio), 3 conhecidos, 4 fãs (por último)
-const FIGHTER_H={rua1:'@valentao_do_beco',rua2:'@cabeca_de_ferro',rua3:'@zeca_navalha',rua4:'@rei_da_roda',forja1:'@fagulha_forja',forja2:'@martelo_forja',forja3:'@bigorna_forja',forja4:'@cinza_forja',forja5:'@fornalha_forja',forja6:'@ferrugem_forja',forja7:'@altoforno_forja',rua5:'@tubarao_do_cais',rua6:'@cobra_coral_rua',rua7:'@facao_do_mercado',rua8:'@pit_do_viaduto'};
+const FIGHTER_H={rua1:'@valentao_do_beco',rua2:'@cabeca_de_ferro',rua3:'@zeca_navalha',rua4:'@rei_da_roda',forja1:'@fagulha_forja',forja2:'@martelo_forja',forja3:'@bigorna_forja',forja4:'@cinza_forja',forja5:'@fornalha_forja',forja6:'@ferrugem_forja',forja7:'@altoforno_forja',rua5:'@tubarao_do_cais',rua6:'@cobra_coral_rua',rua7:'@facao_do_mercado',rua8:'@pit_do_viaduto',cage1:'@renan_guilhotina'};
 const H_ID={};Object.keys(FIGHTER_H).forEach(k=>H_ID[FIGHTER_H[k]]=k);
 const DM_T2=['@coach_tiao_boxe','@ex_lutador_marcao','@fightnews_rua','@luvas_pegada_forte','@suplementos_forte','@academia_ferro_bruto','@fightgram'];
 const DM_NOMES={'@coach_tiao_boxe':'Coach Tião','@ex_lutador_marcao':'Marcão','@fightnews_rua':'Fightnews Rua','@luvas_pegada_forte':'Luvas Pegada Forte','@suplementos_forte':'Suplementos Forte','@academia_ferro_bruto':'Academia Ferro Bruto','@fightgram':'Fightgram','@tio_zinho_padaria':'Tio Zinho','@tio_do_churrasco':'Tio do Churrasco','@thiago_apostas':'Thiago','@carlinhos_do_corre':'Carlinhos'};
@@ -5363,6 +5376,7 @@ function lojaBuild(l,L){const G=new THREE.Group(),Lm=(c,o)=>new THREE.MeshLamber
  const sk=cdCanvas(512,128),g=sk.x;g.fillStyle=l.cor;g.fillRect(0,0,512,128);g.fillStyle='#fff';g.textAlign='center';g.font='bold 54px sans-serif';g.fillText(l.sign||'CONCESSIONÁRIA',256,68,480);g.font='bold 24px sans-serif';g.fillText(l.sub||'CARROS NOVOS · ENTRE E CONFIRA',256,106,480);sk.t.needsUpdate=true;
  const SM=new THREE.MeshBasicMaterial({map:sk.t,side:THREE.DoubleSide}),pl=new THREE.Mesh(new THREE.PlaneGeometry(W-1,1.5),SM);pl.rotation.y=Math.PI;pl.position.set(cx,H-.8,zf-.12);G.add(pl);
  const px=L.x0+6,pz=L.z0+3;bx(mW,.4,11,.4,px,0,pz);for(const s of[-1,1]){const q=new THREE.Mesh(new THREE.PlaneGeometry(7,1.75),SM);q.position.set(px,10,pz+s*.23);if(s<0)q.rotation.y=Math.PI;G.add(q)}   // totem alto, visível da rua
+ if(l.id=='boxe')try{bxLotBuild(G,l,L,Lm)}catch(e){console.warn('estacionamento',e)}
  L.g=G;G.position.y=Ht(cx,hz);cityG.add(G)}
 function lojaInterior(l,L){if(l.id=='eletro')return eletroInterior(l,L);if(l.id=='boxe')return boxeInterior(l,L);if(l.id=='wrest')return wrestInterior(l,L);const I=new THREE.Group(),cx=L.cx,hz=L.hz,zf=hz-l.D/2,Lm=(c,o)=>new THREE.MeshLambertMaterial(Object.assign({color:c},o||{})),
  bx=(m,w,h,d,x,y,z,P)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y+h/2,z);(P||I).add(o);return o},
@@ -6045,22 +6059,22 @@ function carPropOk(){if(!CAR||!CAR.prop)return;if(CAR.prop.lista)CAR.prop.lista=
  carPropExtra()}
 function CARPL(q,cnt){q=q&&typeof q=='object'?q:{};
  const li=Array.isArray(q.lista)?q.lista.filter(o=>o&&CAR_ROSTER_ID[o.id]).slice(0,PROP_TOT).map(o=>({id:o.id,premio:Math.round(carNum(o.premio,0,1e7,0)),st:o.st=='a'||o.st=='r'?o.st:'p'})):[],
-  m=q.marcada&&typeof q.marcada=='object'&&CAR_ROSTER_ID[q.marcada.id]?{id:q.marcada.id,premio:Math.round(carNum(q.marcada.premio,0,1e7,0)),dia:carDiaOk(q.marcada.dia)?q.marcada.dia:carHoje(),est:Number.isInteger(q.marcada.est)&&q.marcada.est>=0&&q.marcada.est<4?q.marcada.est:-1}:null;
+  m=q.marcada&&typeof q.marcada=='object'&&CAR_ROSTER_ID[q.marcada.id]?{id:q.marcada.id,premio:Math.round(carNum(q.marcada.premio,0,1e7,0)),dia:carDiaOk(q.marcada.dia)?q.marcada.dia:carHoje(),est:Number.isInteger(q.marcada.est)&&q.marcada.est>=0&&q.marcada.est<5?q.marcada.est:-1}:null;
  return{sim:q.sim==null?-1:cnt(q.sim),lista:li,marcada:m,rec:cnt(q.rec),lut:cnt(q.lut),recHoje:Math.min(PROP_REC_MAX,cnt(q.recHoje))}}
 function propAcao(i,ac){const p=CAR.prop,o=p.lista[i];if(!o||o.st!='p'||p.marcada)return;if(ac=='r'&&p.recHoje>=PROP_REC_MAX)return;
  const k=ac+i,now=performance.now();if(!(CEL.conf&&CEL.conf.k==k&&now<CEL.conf.t)){CEL.conf={k,t:now+4000};return}   // 1º toque pede confirmação (4 s), 2º toque vale
- CEL.conf=null;if(ac=='a'){o.st='a';p.marcada={id:o.id,premio:o.premio,dia:carHoje(),est:(CAR_ROSTER_ID[o.id]&&CAR_ROSTER_ID[o.id].forja?3:0)}}else{o.st='r';p.rec++;p.recHoje++}
+ CEL.conf=null;if(ac=='a'){o.st='a';p.marcada={id:o.id,premio:o.premio,dia:carHoje(),est:(CAR_ROSTER_ID[o.id]&&Number.isInteger(CAR_ROSTER_ID[o.id].est)?CAR_ROSTER_ID[o.id].est:(CAR_ROSTER_ID[o.id]&&CAR_ROSTER_ID[o.id].forja?3:0))}}else{o.st='r';p.rec++;p.recHoje++}
  carSalvar();CEL.dirty=true}
 // ---------- foto do lutador: busto desenhado, sempre igual pro mesmo lutador (sorteio pelo id) ----------
 // ---------- APARÊNCIA POR LUTADOR: a MESMA tabela pinta o lutador 3D da luta e o ícone do celular ----------
 const FK_BASE={sk:[.788,.561,.408],hr:[.2,.12,.07],hs:[.19,.11,.06]};
 const FK_PL=['#f2cfae','#e3b088','#c98f62','#a8714a','#7d4e30','#5b3722'],FK_HC=['#15110e','#2a1b10','#4b301a','#6e4c2a','#8d6a3c','#b59a5c'],FK_CM=['#c0392b','#2c6fb5','#e0b000','#2f8f5b','#6a4bb0','#e07a1f'];
 const fkHex=q=>[parseInt(q.slice(1,3),16)/255,parseInt(q.slice(3,5),16)/255,parseInt(q.slice(5,7),16)/255];
-const FK_RUA={rua1:[1,2,0],rua2:[3,0,1],rua3:[0,4,3],rua4:[4,1,5],forja1:[0,5,2],forja2:[4,0,0],forja3:[5,1,1],forja4:[2,3,4],forja5:[3,0,5],forja6:[1,2,2],forja7:[5,0,1],rua5:[2,3,1],rua6:[1,1,3],rua7:[4,4,0],rua8:[0,2,5],bxa1:[2,1,0],bxa2:[4,2,1],bxa3:[1,3,2],wra1:[0,4,1],wra2:[3,1,4],wra3:[5,0,3]};
+const FK_RUA={rua1:[1,2,0],rua2:[3,0,1],rua3:[0,4,3],rua4:[4,1,5],forja1:[0,5,2],forja2:[4,0,0],forja3:[5,1,1],forja4:[2,3,4],forja5:[3,0,5],forja6:[1,2,2],forja7:[5,0,1],rua5:[2,3,1],rua6:[1,1,3],rua7:[4,4,0],rua8:[0,2,5],cage1:[3,1,2],bxa1:[2,1,0],bxa2:[4,2,1],bxa3:[1,3,2],wra1:[0,4,1],wra2:[3,1,4],wra3:[5,0,3]};
 function fkLook(id){if(!id)return null;if(FK_RUA[id]){const t=FK_RUA[id];return{sk:fkHex(FK_PL[t[0]]),hr:fkHex(FK_HC[t[1]]),cs:fkHex(FK_CM[t[2]])}}const h=carHash(id+'#foto');return{sk:fkHex(FK_PL[h%6]),hr:fkHex(FK_HC[(h>>>3)%6]),cs:fkHex(FK_CM[(h>>>11)%6])}}
 const fkRatio=(a,b)=>a.map((v,i)=>v/b[i]);
 // extras visuais dos 4 da rua: camiseta/regata (cor), careca, tamanho da cabeça e cor do cabelo extra (só visual, não mexe em física/hitbox)
-const FK_RUA_X={rua1:{sh:[.42,.30,.18],hd:1},rua2:{sh:[.55,.55,.57],bald:1,hd:1.12},rua3:{sh:null,hd:.95,dk:.82},rua4:{sh:[.08,.08,.1],hd:1.03,gold:1},forja1:{sh:null,hd:.93},forja2:{sh:null,bald:1,hd:1.16},forja3:{sh:null,hd:1.06,dk:.9},forja4:{sh:null,hd:.98,dk:.8},forja5:{sh:null,hd:1.08,gold:1},forja6:{sh:null,hd:1,dk:.85},forja7:{sh:null,hd:1.1,gold:1,dk:.78},rua5:{sh:[.1,.25,.35],hd:1.02},rua6:{sh:null,hd:.97,dk:.85},rua7:{sh:[.5,.12,.1],hd:1.05},rua8:{sh:[.15,.35,.2],bald:1,hd:1.08},bxa1:{sh:null,bald:1,hd:1.1,dk:.92},bxa2:{sh:null,hd:.93},bxa3:{sh:null,hd:1,dk:.85,gold:1},wra1:{sh:null,hd:1.1,dk:.92},wra2:{sh:null,hd:.93},wra3:{sh:null,hd:1.04,dk:.85}};
+const FK_RUA_X={rua1:{sh:[.42,.30,.18],hd:1},rua2:{sh:[.55,.55,.57],bald:1,hd:1.12},rua3:{sh:null,hd:.95,dk:.82},rua4:{sh:[.08,.08,.1],hd:1.03,gold:1},forja1:{sh:null,hd:.93},forja2:{sh:null,bald:1,hd:1.16},forja3:{sh:null,hd:1.06,dk:.9},forja4:{sh:null,hd:.98,dk:.8},forja5:{sh:null,hd:1.08,gold:1},forja6:{sh:null,hd:1,dk:.85},forja7:{sh:null,hd:1.1,gold:1,dk:.78},rua5:{sh:[.1,.25,.35],hd:1.02},rua6:{sh:null,hd:.97,dk:.85},rua7:{sh:[.5,.12,.1],hd:1.05},rua8:{sh:[.15,.35,.2],bald:1,hd:1.08},cage1:{sh:[.25,.12,.45],hd:1.02},bxa1:{sh:null,bald:1,hd:1.1,dk:.92},bxa2:{sh:null,hd:.93},bxa3:{sh:null,hd:1,dk:.85,gold:1},wra1:{sh:null,hd:1.1,dk:.92},wra2:{sh:null,hd:.93},wra3:{sh:null,hd:1.04,dk:.85}};
 let FK_XID=null;
 const FK_CAMISA=false;   // false = corpo todo da mesma cor de pele (sem 'barriga' pintada de outra cor). Os dados sh dos FK_RUA_X ficam guardados; true religa a regata/camiseta
 function fkPaint(A,L){const O=BODY.geo.attributes.color.array,n=O.length/3,k=L?fkRatio(L.sk,FK_BASE.sk):null,X=FK_XID&&FK_RUA_X[FK_XID]||null,G=BODY.geo.attributes,SI=G.skinIndex&&G.skinIndex.array,PP=G.position.array;   // BODY.geo tem o mesmo índice de vértices do inimigo, mas sem o deslocamento x
@@ -6149,7 +6163,7 @@ function celProp(){const g=CEL.cx,p=CAR.prop;carPropOk();celHdr('PROPOSTAS',()=>
   celRR(g,24,yy,464,ch,20);g.fillStyle=st=='r'?'#10151f':(j%2?CELC.card:'#10192a');g.fill();if(st=='a'){g.strokeStyle=CELC.ac;g.lineWidth=3;g.stroke()}
   g.save();g.globalAlpha=st=='r'?.45:1;celRetrato(g,92,yy+42,36,o.id);
   celT(c.nome,150,yy+28,26,CELC.tx,'left','bold',330);
-  celT('#'+f.pos+' · '+f.v+'V '+f.d+'D · '+(RUA_DES[o.id]&&ruaPend(o.id)?(RUA_DES[o.id].t=='rev'?'quer revanche':'lutador novo'):FORJA_FIXA[o.id]?(FORJA_FIXA[o.id].defesa?'defesa de cinturão':'luta do cinturão'):FORJA_REV[o.id]&&!forjaVenceu(o.id)?'revanche':(j%PROP_N==0?'igual a você':j%PROP_N==1?'duro':j%PROP_N==2?'perigoso':'chefão')),150,yy+52,20,CELC.sub,'left','normal',330);{const fx=FORJA_FIXA[o.id];if(fx){celT('GANHA '+carFmt(fx.ganha)+(fx.defesa?' 🛡️':' 🏆'),150,yy+78,24,CELC.ouro,'left','bold',330);celT('PERDE '+carFmt(fx.perde)+' · valores fixos',150,yy+102,20,CELC.sub,'left','normal',330)}else celT('GANHA '+carFmt(o.premio)+(c.forja?' +🔥':''),150,yy+78,24,CELC.ouro,'left','bold',330)}g.restore();
+  celT('#'+f.pos+' · '+f.v+'V '+f.d+'D · '+(RUA_DES[o.id]&&ruaPend(o.id)?(RUA_DES[o.id].t=='rev'?'quer revanche':RUA_DES[o.id].t=='cage'?'circuito regional':'lutador novo'):FORJA_FIXA[o.id]?(FORJA_FIXA[o.id].defesa?'defesa de cinturão':'luta do cinturão'):FORJA_REV[o.id]&&!forjaVenceu(o.id)?'revanche':(j%PROP_N==0?'igual a você':j%PROP_N==1?'duro':j%PROP_N==2?'perigoso':'chefão')),150,yy+52,20,CELC.sub,'left','normal',330);{const fx=FORJA_FIXA[o.id];if(fx){celT('GANHA '+carFmt(fx.ganha)+(fx.circ?' 🥊':fx.defesa?' 🛡️':' 🏆'),150,yy+78,24,CELC.ouro,'left','bold',330);celT('PERDE '+carFmt(fx.perde)+' · valores fixos',150,yy+102,20,CELC.sub,'left','normal',330)}else celT('GANHA '+carFmt(o.premio)+(c.forja?' +🔥':''),150,yy+78,24,CELC.ouro,'left','bold',330)}g.restore();
   const by=yy+ch-54;
   if(st=='a')celT('ACEITA',256,by+40,28,CELC.ac,'center','bold');else if(st=='r')celT('RECUSADA',256,by+40,26,CELC.sub,'center','bold');
   else{const sem=p.recHoje>=PROP_REC_MAX;
@@ -6352,7 +6366,7 @@ function drvEnter(){MOB.gas=MOB.brk=MOB.st=0;const G=CARRO.g;if(!G||DRV.on||!CAR
 function drvSair(){if(!DRV.on||DRV.ph!='drive')return;DRV.want.candy=DRV.want.alexie=0;DRV.ph='out';DRV.t=0;DRV.ry0=DRV.ry;DRV.hh={};if(DRV.mot)DRV.mot.set(DRV.c.snd.idle,.1);snd(380,.3)}
 function drvFim(luta){const G=DRV.G;if(!G)return;postoPaga();carSalvar();if(DRV.mot){DRV.mot.stop();DRV.mot=null}
  drvExtHide(G,false);mirUnbind(G);drvInFree(DRV.I);DRV.I=null;DRV.wh.forEach(o=>{o.rotation.y=0});G.rotation.x=G.rotation.z=0;
- if(luta){G.position.set(CARRO.x,0,CARRO.z);G.rotation.y=CARRO.yaw}else{CARRO.x=G.position.x;CARRO.z=G.position.z;CARRO.yaw=G.rotation.y}
+ if(luta){G.position.set(CARRO.x,Ht(CARRO.x,CARRO.z),CARRO.z);G.rotation.y=CARRO.yaw}else{CARRO.x=G.position.x;CARRO.z=G.position.z;CARRO.yaw=G.rotation.y}
  DRV.on=false;DRV.ph='';DRV.v=0;DRV.gh=0;DRV.dead=0;rig.position.y=Ht(rig.position.x,rig.position.z);if(VRON)rig.rotation.y=0;if(DRV.bp)DRV.bp.m.visible=false;
  if(luta||!NPC.built)drvPassHome()}
 function drvAbort(){if(DRV.on)drvFim(false);drvPassHome();if(GT.m)GT.m.visible=false}
@@ -6549,12 +6563,13 @@ const EST=[
  {k:0,nome:'Briga de Rua',bi:18,bj:4,min:0,W:56,D:40,LD:40,H:11,pub:.3,n:14,cars:7},
  {k:1,nome:'Arena Metropolitana',bi:4,bj:17,min:500,W:84,D:52,LD:46,H:18,pub:.7,n:70,cars:46},
  {k:2,nome:'Mega Arena MMAVR',bi:28,bj:27,min:5000,W:100,D:70,LD:56,H:30,pub:1,n:220,cars:120},
- {k:3,nome:'Arena Forja',bi:19,bj:4,min:150,W:70,D:46,LD:42,H:14,pub:.5,n:40,cars:24}];   // meio-termo: entre a Briga de Rua (0) e a Arena Metropolitana (1); fica no quarteirão colado à Briga de Rua
+ {k:3,nome:'Arena Forja',bi:19,bj:4,min:150,W:70,D:46,LD:42,H:14,pub:.5,n:40,cars:24},
+ {k:4,nome:'Cage Regional',bi:30,bj:3,min:0,W:60,D:40,LD:34,H:12,pub:.38,n:22,cars:16}];   // DIA 11/11: arena ÚNICA do circuito regional, bem longe (13+ quarteirões do lobby; a Forja fica a ~6)   // meio-termo: entre a Briga de Rua (0) e a Arena Metropolitana (1); fica no quarteirão colado à Briga de Rua
 for(const e of EST){const x0=ctSx(e.bi)+CT.RW/2,x1=ctSx(e.bi+1)-CT.RW/2,z0=ctSz(e.bj)+CT.RW/2;e.bx0=x0;e.bx1=x1;e.bz0=z0;e.bz1=z0+CT.P-CT.RW;e.cx=(x0+x1)/2;
  e.lx0=x0+6;e.lx1=x1-6;e.lz0=z0+4;e.lz1=e.lz0+e.LD;e.zf=e.lz1+6;e.zb=e.zf+e.D;e.ay=e.lz0+5.5+3.25;   // ay = corredor central do estacionamento
  e.dest={x:e.cx,z:e.ay};e.door={x:e.cx,z:e.zf-(e.k==2?9:1.6)};e.tz=(e.k==2?e.zf-9:e.zf)-.75;e.ent={x:e.cx,z:ctSz(e.bj)};e.spawn={x:e.cx-8,z:e.ay,yaw:Math.PI/2};e.cc=null;e.g=null;e.ppl=null}
 const cityEstTier=()=>{const s=CAR&&CAR.social&&CAR.social.seg?CAR.social.seg.eu:0;return s>=EST[2].min?2:s>=EST[1].min?1:s>=EST[3].min?3:0};
-const cityEstOf=m=>m&&Number.isInteger(m.est)&&m.est>=0&&m.est<4?m.est:cityEstTier();
+const cityEstOf=m=>m&&Number.isInteger(m.est)&&m.est>=0&&m.est<5?m.est:cityEstTier();
 const cityEstNome=m=>EST[cityEstOf(m)].nome;
 const ctEstAt=(x,z)=>{for(const e of EST)if(x>=e.bx0&&x<=e.bx1&&z>=e.bz0&&z<=e.bz1)return e;return null};
 // ---------- PONTOS DE REFERÊNCIA ÚNICOS (blocos especiais, cada um diferente) ----------
@@ -6821,7 +6836,30 @@ function ctNodes(){if(CT_ND)return CT_ND;const N=CT.N,n=N+1,A=new Float32Array(n
  for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(ctType(i,j)=='lm')pad(i,j);
  for(let i=0;i<N;i++)for(let j=0;j<N;j++){const t=ctType(i,j);if(t=='park'||(t=='res'&&casaIsLot(i,j))||lojaIsLot(i,j)||postoIsLot(i,j)||delIsLot(i,j))pad(i,j)}
  return CT_ND=A}
-function Ht(x,z){const P=CT.P,u=(x-CT.X0)/P,v=(z-CT.Z0)/P;if(!(u>0&&v>0&&u<CT.N&&v<CT.N))return 0;const i=Math.floor(u),j=Math.floor(v),a=u-i,b=v-j,A=ctNodes(),n=CT.N+1;
+// ======================= ESTACIONAMENTO DA ACADEMIA DE BOXE =======================
+// Pátio da frente da academia (48 m de largura) com vagas pintadas, entrada de carro pela calçada e placa. O carro pode entrar, estacionar e
+// fica salvo na vaga (CAR.carp) enquanto você treina/luta. O chão do pátio fica a 17 cm (topo da calçada), então Ht() devolve essa altura.
+let BXLOT=null;
+function bxLot(){if(BXLOT)return BXLOT;try{const L=lojaLots().boxe;if(!L)return null;const dx=L.door.x;BXLOT={dx,x0:dx-24,x1:dx+24,z0:L.z0,z1:L.door.z-.5,zs:L.z0-CT.SW-.3};return BXLOT}catch(e){return null}}
+function bxLotIn(x,z){const q=bxLot();return !!q&&x>q.x0&&x<q.x1&&z>=q.z0&&z<q.z1}
+function bxLotCar(x,z){const q=bxLot();if(!q)return false;return bxLotIn(x,z)||(Math.abs(x-q.dx)<4.5&&z>q.zs&&z<q.z0)}
+function bxLotH(x,z){const q=bxLot();if(!q)return -1;if(bxLotIn(x,z))return .17;if(Math.abs(x-q.dx)<4.5&&z>q.zs&&z<q.z0)return .02+.15*(z-q.zs)/(q.z0-q.zs);return -1}
+function bxLotBuild(G,l,L,Lm){const q=bxLot();if(!q)return;const dx=q.dx,z0=q.z0,z1=q.z1,gm=new THREE.BoxGeometry(1,1,1),ma=Lm('#3a3d43'),mw=new THREE.MeshBasicMaterial({color:0xf1f1ee}),my=new THREE.MeshBasicMaterial({color:0xf2c14e}),mc=Lm('#b9b6ad'),mp=Lm('#2a2c31');
+ const bx=(m,w,h,d,x,y,z,ry)=>{const o=new THREE.Mesh(gm,m);o.scale.set(w,h,d);o.position.set(x,y,z);if(ry)o.rotation.y=ry;G.add(o);return o};
+ bx(ma,48,.06,z1-z0,dx,.14,(z0+z1)/2);   // asfalto do pátio (topo a 17 cm)
+ const a=Math.atan2(.15,z0-q.zs),rl=Math.hypot(.15,z0-q.zs);   // rampa de entrada atravessando a calçada
+ const rp=bx(ma,9,.06,rl+.1,dx,(.02+.17)/2+.01,(q.zs+z0)/2);rp.rotation.x=-a;
+ bx(mc,10,.012,5.6,dx,.176,z1-3.2);   // calçada de concreto até a porta (a pé)
+ const zB0=z0+.6,zB1=z0+6,zA1=z1-.4,zA0=zA1-5.4;
+ for(const off of[-24,-21,-18,-15,-12,-9,-6,6,9,12,15,18,21,24]){bx(mw,.12,.012,zB1-zB0,dx+off,.178,(zB0+zB1)/2);bx(mw,.12,.012,zA1-zA0,dx+off,.178,(zA0+zA1)/2)}
+ for(const[c,w]of[[-15,18],[15,18]]){bx(mw,w,.012,.12,dx+c,.178,zB1);bx(mw,w,.012,.12,dx+c,.178,zA0)}   // fundo das vagas (lado da rua e lado da academia)
+ for(const off of[-24,24])bx(my,.14,.014,z1-z0-.2,dx+off,.179,(z0+z1)/2);   // faixa amarela nas bordas
+ for(const off of[-22.5,-19.5,-16.5,-13.5,-10.5,-7.5,7.5,10.5,13.5,16.5,19.5,22.5]){bx(mc,1.9,.14,.22,dx+off,.24,zA1-.1);bx(mc,1.9,.14,.22,dx+off,.24,zB0+.1)}   // calços de roda
+ const sk=cdCanvas(512,160),g=sk.x;g.fillStyle='#0b4fb3';g.fillRect(0,0,512,160);g.fillStyle='#fff';g.font='bold 120px sans-serif';g.textAlign='center';g.fillText('P',90,124);g.font='bold 40px sans-serif';g.fillText('ESTACIONAMENTO',320,76,300);g.font='bold 26px sans-serif';g.fillStyle='#ffd04a';g.fillText('ACADEMIA DE BOXE',320,118,300);sk.t.needsUpdate=true;
+ const SM=new THREE.MeshBasicMaterial({map:sk.t,side:THREE.DoubleSide});
+ for(const sx of[-6.2,6.2]){bx(mp,.18,3.6,.18,dx+sx,.17+1.8,z0+.8);const pl=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1),SM);pl.position.set(dx+sx,.17+3.9,z0+.8);G.add(pl)}   // placas dos dois lados da entrada
+ for(const sx of[-16,0,16]){bx(mp,.16,5,.16,dx+sx,.17+2.5,z0+7.8);bx(new THREE.MeshBasicMaterial({color:0xfff6dc}),.9,.14,.5,dx+sx,.17+5.05,z0+7.8)}}   // postes de luz
+function Ht(x,z){{const hq=bxLotH(x,z);if(hq>=0)return hq}const P=CT.P,u=(x-CT.X0)/P,v=(z-CT.Z0)/P;if(!(u>0&&v>0&&u<CT.N&&v<CT.N))return 0;const i=Math.floor(u),j=Math.floor(v),a=u-i,b=v-j,A=ctNodes(),n=CT.N+1;
  return A[i*n+j]*(1-a)*(1-b)+A[(i+1)*n+j]*a*(1-b)+A[i*n+j+1]*(1-a)*b+A[(i+1)*n+j+1]*a*b}
 const ctDy=(G,v)=>{for(const k in G)G[k].dy=v};
 function ctTopH(G,x0,z0,x1,z1,dy,uv,n){const P=(s,t)=>{const x=x0+(x1-x0)*s,z=z0+(z1-z0)*t;return[x,Ht(x,z)+dy,z]},UV=(s,t)=>{const a=1-s,b=1-t;return[a*b*uv[6]+s*b*uv[4]+s*t*uv[2]+a*t*uv[0],a*b*uv[7]+s*b*uv[5]+s*t*uv[3]+a*t*uv[1]]};
@@ -7024,7 +7062,7 @@ function ctSolidCar(x,z){const hw=CT.RW/2;if(z<CT.Z0-hw)return !ctHomeFree(x,z,t
   if(x<CT.X0-hw||x>CT.X1+hw||z>CT.Z1+hw)return true;
   {const po=postoAt(x,z);if(po)return postoBox(po.sol,x,z,.1)||ctCircHit(x,z,0)}   // dentro do posto o carro anda livre (menos bombas, pilares e loja)
  const fx=((x-CT.X0)%CT.P+CT.P)%CT.P,fz=((z-CT.Z0)%CT.P+CT.P)%CT.P;
- if(!(fx<hw||fx>CT.P-hw||fz<hw||fz>CT.P-hw)){const e=ctEstAt(x,z);if(!(e&&((x>e.lx0&&x<e.lx1&&z>e.lz0&&z<e.lz1)||(Math.abs(x-e.cx)<4.6&&z<=e.lz0+.5))))return true}   // + entrada/saída do estacionamento: faixa de 9,2 m no meio, da rua até o pátio (antes o pátio era cercado por 4 m de calçada sólida e o carro não saía)
+ if(!(fx<hw||fx>CT.P-hw||fz<hw||fz>CT.P-hw)){const e=ctEstAt(x,z);if(!(e&&((x>e.lx0&&x<e.lx1&&z>e.lz0&&z<e.lz1)||(Math.abs(x-e.cx)<4.6&&z<=e.lz0+.5)))&&!bxLotCar(x,z))return true}   // + entrada/saída do estacionamento: faixa de 9,2 m no meio, da rua até o pátio (antes o pátio era cercado por 4 m de calçada sólida e o carro não saía)
  return ctCircHit(x,z,0)||trfSolid(x,z)}
 function ctEstSolid(e,x,z,r){/* Briga de Rua, Metropolitana e Forja = prédio retangular (só a Mega Arena é oval com corredor de entrada) */if(e.k!=2)return x>e.cx-e.W/2-r&&x<e.cx+e.W/2+r&&z>e.zf-r&&z<e.zb+r;
  const a=e.W/2+r,b=e.D/2+r,zc=e.zf+e.D/2;return ((x-e.cx)/a)**2+((z-zc)/b)**2<1||(Math.abs(x-e.cx)<12+r&&z>e.zf-9-r&&z<e.zf+3)}
@@ -8081,6 +8119,35 @@ function ctEstBuild(e){const g=new THREE.Group(),M=ctMats(),F=new CtG(),P=new Ct
   for(const[dx,dz,hh]of[[-24,-5,1.2],[-26.4,-5,1.2],[-25.2,-5,2.4],[24,-6,1.2],[26.4,-6,1.2],[25.2,-6,2.4]])F.box(cx+dx-1.1,.04,zf+dz-1.1,cx+dx+1.1,.04+hh,zf+dz+1.1,[.5,.36,.2],[.58,.42,.24]);
   // bandeiras laranja e pretas ao longo da fachada
   for(let i=0;i<6;i++){const x=cx-27+i*10.8;mesh(new THREE.CylinderGeometry(.06,.06,9,6),S({color:0x2a2c30,metalness:.6,roughness:.4}),x,4.5,zf-6);F.box(x,6,zf-6.05,x+2.4,8.6,zf-6.0,i%2?[.1,.1,.11]:[.95,.5,.12],null)}}
+ else if(k==4){   // ---- CAGE REGIONAL (fora): ginásio municipal do interior, teto em arco de zinco, bloco pintado, barracas e luzinhas na praça ----
+  const wallH=7.2,ar=H-wallH;
+  const blk=ctCv(512,256,(c,w,h)=>{c.fillStyle='#e8ebe6';c.fillRect(0,0,w,h);c.fillStyle='#1f6f73';c.fillRect(0,h*.56,w,h*.44);ctNz(c,w,h,1400,.07);ctStain(c,w,h,30,.2);c.strokeStyle='rgba(0,0,0,.14)';c.lineWidth=2;for(let y=h*.56;y<h;y+=20){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke()}c.fillStyle='#d8383a';c.fillRect(0,h*.54,w,6);for(let i=0;i<5;i++){c.fillStyle='#2b3037';c.fillRect(40+i*95,34,56,34);c.fillStyle='#a8c8dc';c.fillRect(43+i*95,37,50,28)}},[4,1]);
+  const fr=ctCv(1024,256,(c,w,h)=>{c.fillStyle='#e8ebe6';c.fillRect(0,0,w,h);c.fillStyle='#1f6f73';c.fillRect(0,h*.58,w,h*.42);ctNz(c,w,h,1800,.07);ctStain(c,w,h,36,.2);c.fillStyle='#d8383a';c.fillRect(0,h*.56,w,8);
+   c.fillStyle='#2b3037';c.fillRect(w/2-120,60,240,h-60);c.fillStyle='#cfd6da';c.fillRect(w/2-112,68,106,h-68);c.fillRect(w/2+6,68,106,h-68);c.fillStyle='#18d0ff';c.globalAlpha=.55;c.fillRect(w/2-4,68,8,h-68);c.globalAlpha=1;
+   for(const x of[150,320,704,874]){c.fillStyle='#2b3037';c.fillRect(x,120,70,64);c.fillStyle='#a8c8dc';c.fillRect(x+4,124,62,56)}});
+  const zn=ctCv(256,128,(c,w,h)=>{c.fillStyle='#a3abb0';c.fillRect(0,0,w,h);for(let x=0;x<w;x+=8){c.fillStyle='rgba(255,255,255,.28)';c.fillRect(x,0,3,h);c.fillStyle='rgba(0,0,0,.22)';c.fillRect(x+4,0,2,h)}ctNz(c,w,h,900,.08)},[6,1]);own.push(blk,fr,zn);
+  const wm=S({map:blk.t,roughness:.95}),frm=S({map:fr.t,roughness:.95}),rfm=S({color:0x8f989e,roughness:.6,metalness:.4});
+  mesh(new THREE.BoxGeometry(W,wallH,D),[wm,wm,rfm,rfm,wm,frm],cx,wallH/2,zf+D/2);
+  // teto em arco de zinco (meia-elipse extrudada) com travessas
+  {const a=W/2,sh=new THREE.Shape();sh.moveTo(-a,0);for(let i=1;i<=28;i++){const t=Math.PI-i/28*Math.PI;sh.lineTo(Math.cos(t)*a,Math.sin(t)*ar)}
+   mesh(new THREE.ExtrudeGeometry(sh,{depth:D,bevelEnabled:false}),S({map:zn.t,roughness:.45,metalness:.55}),cx,wallH,zf);
+   for(let i=0;i<=8;i++){const zz=zf+i*D/8;F.box(cx-a-.15,wallH-.25,zz-.12,cx+a+.15,wallH,zz+.12,[.3,.33,.37],null)}}
+  // alpendre verde-petróleo na entrada
+  F.box(cx-11,3.7,zf-5.4,cx+11,4,zf,[.12,.42,.46],[.16,.5,.54]);for(const sx of[-1,1])for(const dz of[-5.2,-.4])F.box(cx+sx*10.6-.2,0,zf+dz-.2,cx+sx*10.6+.2,3.7,zf+dz+.2,[.2,.21,.24],null);
+  // letreiro neon animado
+  const sg=ctCv(1024,160,()=>{});e.led=sg;own.push(sg);mesh(new THREE.PlaneGeometry(24,3.75),B({map:sg.t,fog:false}),cx,5.6,zf-.12).rotation.y=Math.PI;ctLedDraw(e,0);
+  // varal de luzinhas sobre a praça
+  {const bl=B({color:0xffe9a6,fog:false}),bg=new THREE.SphereGeometry(.14,6,5);for(const zz of[zf-9,zf-14]){for(let i=0;i<=26;i++){const t=i/26;mesh(bg,bl,cx-32+64*t,6.4-1.6*Math.sin(t*Math.PI),zz)}for(const sx of[-1,1])F.box(cx+sx*32-.12,0,zz-.12,cx+sx*32+.12,6.6,zz+.12,[.3,.28,.25],null)}}
+  // torres de refletor
+  for(const sx of[-1,1]){const tx=cx+sx*(W/2+7),tz=zf+D*.3;F.box(tx-.25,0,tz-.25,tx+.25,22,tz+.25,[.45,.47,.5],null);mesh(new THREE.BoxGeometry(4.2,1.6,.6),B({color:0xf2f7ff,fog:false}),tx,22.8,tz).rotation.y=sx*.5}
+  // barracas de feira na praça + food truck
+  for(const[dx,dz,cl]of[[-20,-8,[.85,.22,.23]],[-13,-8,[.95,.95,.93]],[13,-8,[.85,.22,.23]],[20,-8,[.95,.95,.93]],[-26,-15,[.18,.56,.36]],[26,-15,[.88,.69,0]]]){F.box(cx+dx-1.7,2.5,zf+dz-1.5,cx+dx+1.7,2.66,zf+dz+1.5,cl,null);for(const sx of[-1,1])for(const sz of[-1,1])F.box(cx+dx+sx*1.6-.05,0,zf+dz+sz*1.4-.05,cx+dx+sx*1.6+.05,2.5,zf+dz+sz*1.4+.05,[.3,.3,.32],null);F.box(cx+dx-1.2,.04,zf+dz-.5,cx+dx+1.2,1,zf+dz+.5,[.45,.3,.18],[.5,.34,.2])}
+  F.box(cx+W/2+3,.4,zf-27,cx+W/2+9.5,3.4,zf-24.6,[.9,.5,.15],[.95,.55,.18]);F.box(cx+W/2+4,1.7,zf-24.65,cx+W/2+8,2.8,zf-24.55,[.1,.12,.15],null);
+  // bandeirolas verde e amarelo ao longo da fachada
+  for(let i=0;i<7;i++){const x=cx-30+i*10;mesh(new THREE.CylinderGeometry(.06,.06,9,6),S({color:0x2a2c30,metalness:.6,roughness:.4}),x,4.5,zf-6.4);F.box(x,6.2,zf-6.45,x+2.4,8.7,zf-6.4,i%2?[.08,.45,.2]:[.95,.8,.1],null)}
+  // outdoor do card ao lado da entrada
+  {const bb=ctCv(512,256,(c,w,h)=>{const q=c.createLinearGradient(0,0,w,h);q.addColorStop(0,'#0f3a66');q.addColorStop(1,'#07121f');c.fillStyle=q;c.fillRect(0,0,w,h);c.fillStyle='#ffd23c';c.font='bold 64px sans-serif';c.textAlign='center';c.fillText('CAGE REGIONAL',w/2,92,480);c.fillStyle='#fff';c.font='bold 38px sans-serif';c.fillText('CARD AMADOR · 3 ROUNDS',w/2,150,480);c.fillStyle='#18d0ff';c.font='bold 30px sans-serif';c.fillText('ENTRADA FRANCA',w/2,206,480)});own.push(bb);
+   const bx=cx-W/2-14,bz=zf-12;for(const sx of[-1,1])F.box(bx+sx*5-.2,0,bz-.2,bx+sx*5+.2,5.4,bz+.2,[.35,.37,.4],null);mesh(new THREE.PlaneGeometry(12,6),B({map:bb.t,fog:false}),bx,6.6,bz-.25).rotation.y=Math.PI;F.box(bx-6.2,3.5,bz-.2,bx+6.2,9.8,bz+.15,[.06,.07,.09],null)}}
  else{   // ---- Mega Arena MMAVR: ginásio-bolha enorme, LED, tapete vermelho, feixes de luz ----
   const a=W/2,b=D/2,zc=zf+b,wl=ctCv(2048,256,(c,w,h)=>{const q=c.createLinearGradient(0,0,w,h);q.addColorStop(0,'#27384a');q.addColorStop(.5,'#3c566d');q.addColorStop(1,'#1b2836');c.fillStyle=q;c.fillRect(0,0,w,h);
    c.fillStyle='#0c1118';for(let x=0;x<w;x+=32)c.fillRect(x,0,3,h);for(const[y,col]of[[40,'#18e0ff'],[120,'#ff3fd0'],[200,'#ffd23c']]){c.fillStyle=col;c.globalAlpha=.8;c.fillRect(0,y,w,6);c.globalAlpha=.25;c.fillRect(0,y-6,w,18);c.globalAlpha=1}
@@ -8102,7 +8169,7 @@ function ctEstBuild(e){const g=new THREE.Group(),M=ctMats(),F=new CtG(),P=new Ct
  // gente indo pra porta (instanciada): mais gente nos estádios mais populares
  const n=e.n,body=new THREE.InstancedMesh(new THREE.CylinderGeometry(.2,.24,1.1,6),S({roughness:.9}),n),head=new THREE.InstancedMesh(new THREE.SphereGeometry(.12,6,5),S({roughness:.8}),n),SK=['#f1c9a5','#d9a273','#a8704a','#7a4a2f','#4a2d1d'],col=new THREE.Color();
  body.frustumCulled=head.frustumCulled=false;const pp=[];for(let i=0;i<n;i++){body.setColorAt(i,col.setHSL(Math.random(),rr(.3,.8),rr(.25,.6)));head.setColorAt(i,col.set(SK[(Math.random()*5)|0]));pp.push({x:0,z:0,sp:rr(.9,1.5),ph:rr(0,TAU),o:rr(-5,5)});ctPersonReset(e,pp[i],true)}
- g.add(body,head);e.ppl={pp,body,head,o:new THREE.Object3D()};{const pk=ctCv(256,256,(c,w,h)=>{const q=c.createLinearGradient(0,0,0,h);q.addColorStop(0,['#1a0f08','#10151c','#0a1020','#1a0c06'][k]);q.addColorStop(1,['#ffb766','#ffe9b0','#9fe8ff','#ff9a3c'][k]);c.fillStyle=q;c.fillRect(0,0,w,h);c.fillStyle='rgba(0,0,0,.4)';for(let i=0;i<14;i++){const x=rr(24,232);c.beginPath();c.arc(x,rr(176,206),rr(8,12),0,TAU);c.fill();c.fillRect(x-9,rr(196,214),18,60)}});own.push(pk);
+ g.add(body,head);e.ppl={pp,body,head,o:new THREE.Object3D()};{const pk=ctCv(256,256,(c,w,h)=>{const q=c.createLinearGradient(0,0,0,h);q.addColorStop(0,['#1a0f08','#10151c','#0a1020','#1a0c06','#0b1418'][k]);q.addColorStop(1,['#ffb766','#ffe9b0','#9fe8ff','#ff9a3c','#bfeaff'][k]);c.fillStyle=q;c.fillRect(0,0,w,h);c.fillStyle='rgba(0,0,0,.4)';for(let i=0;i<14;i++){const x=rr(24,232);c.beginPath();c.arc(x,rr(176,206),rr(8,12),0,TAU);c.fill();c.fillRect(x-9,rr(196,214),18,60)}});own.push(pk);
   const pz=(k==2?zf-9:zf)-.08,ph=k==0?3:4.2,fm=S({color:0x202228,roughness:.6,metalness:.5});
   const pm=mesh(new THREE.PlaneGeometry(6,ph),B({map:pk.t,fog:false}),cx,ph/2,pz);pm.rotation.y=Math.PI;   // porta ABERTA: luz do salão lá dentro
   for(const sg of[-1,1])mesh(new THREE.BoxGeometry(.4,ph+.3,.4),fm,cx+sg*3.2,(ph+.3)/2,pz-.1);
@@ -8114,6 +8181,7 @@ function ctPeopleTick(e,dt,t){const P=e.ppl,O=P.o;for(let i=0;i<P.pp.length;i++)
  P.body.instanceMatrix.needsUpdate=P.head.instanceMatrix.needsUpdate=true;if(P.body.instanceColor)P.body.instanceColor.needsUpdate=P.head.instanceColor.needsUpdate=true}
 function ctLedDraw(e,t){const L=e.led;if(!L)return;const g=L.g,w=L.c.width,h=L.c.height;g.fillStyle='#05070b';g.fillRect(0,0,w,h);
  if(e.k==3){const f=.5+.5*Math.sin(t*9)*Math.sin(t*3.7);g.shadowColor='#ff7a1a';g.shadowBlur=26;g.fillStyle='rgb(255,'+((120+60*f)|0)+',44)';g.font='bold 96px sans-serif';g.textAlign='center';g.fillText('ARENA FORJA',w/2,100);g.shadowBlur=0;g.font='bold 24px sans-serif';g.fillStyle='#ffd7a0';g.fillText('FIGHT NIGHT  ·  ENTRADA POPULAR',w/2,142)}
+ else if(e.k==4){const f=.5+.5*Math.sin(t*6)*Math.sin(t*2.3);g.shadowColor='#18e0ff';g.shadowBlur=24;g.fillStyle='rgb(120,'+((200+40*f)|0)+',255)';g.font='bold 92px sans-serif';g.textAlign='center';g.fillText('CAGE REGIONAL',w/2,92);g.shadowBlur=0;g.font='bold 26px sans-serif';g.fillStyle='#ffd23c';g.fillText('CIRCUITO REGIONAL  ·  CARD AMADOR  ·  3 ROUNDS',w/2,138)}
  else if(e.k==1){g.fillStyle='#ffd04a';g.font='bold 70px sans-serif';g.textAlign='center';g.fillText('ARENA METROPOLITANA',w/2,88);const x=(t*120)%(w+200)-100;g.fillStyle='rgba(255,255,255,.35)';g.fillRect(x,0,40,h)}
  else{const q=g.createLinearGradient(0,0,w,0),o=(t*.15)%1;q.addColorStop(0,'#ff3fd0');q.addColorStop(.5,'#18e0ff');q.addColorStop(1,'#ffd23c');g.fillStyle=q;g.globalAlpha=.25+.1*Math.sin(t*3);g.fillRect(0,0,w,h);g.globalAlpha=1;g.fillStyle='#fff';g.textAlign='center';g.font='bold 96px sans-serif';g.fillText('MEGA ARENA MMAVR',w/2,110);g.font='bold 54px sans-serif';g.fillStyle='#ffd23c';const s=['FIGHT NIGHT','O MAIOR EVENTO DE MMA','VENHA VER AO VIVO'][Math.floor(t/3)%3];g.fillText(s,w/2,190)}
  L.t.needsUpdate=true}
@@ -8218,6 +8286,43 @@ function arBuild(k){const G=new THREE.Group(),B=o=>new THREE.MeshBasicMaterial(o
    const L3=new THREE.PointLight(0xff6a20,1.8,16);L3.position.set(0,2.2,fz+2);G.add(L3);
    AR.forja=t=>{const k=.5+.5*Math.sin(t*13)*Math.sin(t*7.1);L3.intensity=1.3+1.1*k;L1.intensity=1.2+.3*Math.sin(t*2.1);L2.intensity=1.2+.3*Math.sin(t*2.7+1);fp.scale.set(1+.03*k,1+.08*k,1)}}
   AR.forja(0)}
+ else if(k==4){   // ---- CAGE REGIONAL (dentro): ginásio municipal, quadra de madeira, arquibancada de ferro, arcos de treliça, tubos de luz fria ----
+  const S=o=>new THREE.MeshStandardMaterial(o),Rn=14,st=S({color:0x6c7480,roughness:.5,metalness:.7}),mk=(w,h,fn)=>{const L=ctCv(w,h,fn);L.t.wrapS=THREE.RepeatWrapping;own.push(L);return L};
+  const bw=ctCv(1024,256,(c,w,h)=>{c.fillStyle='#e6e9e4';c.fillRect(0,0,w,h);c.fillStyle='#1f6f73';c.fillRect(0,h*.46,w,h*.54);ctNz(c,w,h,2200,.08);ctStain(c,w,h,26,.18);c.strokeStyle='rgba(0,0,0,.18)';c.lineWidth=2;for(let y=h*.46;y<h;y+=22){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke()}
+   for(let i=0;i<12;i++){const x=30+i*84;c.fillStyle='#2b3037';c.fillRect(x,22,56,38);c.fillStyle='#a8c8dc';c.fillRect(x+3,25,50,32);c.fillStyle='rgba(255,255,255,.35)';c.fillRect(x+3,25,50,10)}c.fillStyle='#d8383a';c.fillRect(0,h*.44,w,6)},[3,1]);own.push(bw);
+  const wl=new THREE.Mesh(new THREE.CylinderGeometry(Rn,Rn,11,48,1,true),S({map:bw.t,roughness:1,side:THREE.DoubleSide}));wl.position.y=5.5;G.add(wl);
+  // quadra de madeira com linhas pintadas
+  const pq=ctCv(512,512,(c,w,h)=>{c.fillStyle='#b98a52';c.fillRect(0,0,w,h);for(let y=0;y<h;y+=16){c.fillStyle=y%32?'rgba(0,0,0,.07)':'rgba(255,255,255,.05)';c.fillRect(0,y,w,16);c.fillStyle='rgba(60,35,10,.35)';c.fillRect(0,y,w,1)}ctNz(c,w,h,2600,.08);c.strokeStyle='rgba(255,255,255,.7)';c.lineWidth=6;c.beginPath();c.arc(w/2,h/2,206,0,TAU);c.stroke();c.beginPath();c.arc(w/2,h/2,64,0,TAU);c.stroke();c.strokeStyle='rgba(216,56,58,.8)';c.beginPath();c.arc(w/2,h*.08-10,120,0,Math.PI);c.stroke();c.beginPath();c.arc(w/2,h*.92+10,120,Math.PI,TAU);c.stroke()});own.push(pq);
+  const fl=new THREE.Mesh(new THREE.CircleGeometry(Rn,48),S({map:pq.t,roughness:.55}));fl.rotation.x=-Math.PI/2;fl.position.y=-.006;fl.receiveShadow=true;G.add(fl);
+  // octógono azul com logo do circuito
+  const oc2=ctCv(512,512,(c,w,h)=>{const q=c.createRadialGradient(w/2,h/2,10,w/2,h/2,w*.5);q.addColorStop(0,'#2a5a96');q.addColorStop(1,'#0e2244');c.fillStyle=q;c.fillRect(0,0,w,h);ctNz(c,w,h,1800,.07);c.strokeStyle='#ffd23c';c.lineWidth=10;c.beginPath();c.arc(w/2,h/2,222,0,TAU);c.stroke();c.strokeStyle='#e9f6ff';c.lineWidth=3;c.beginPath();c.arc(w/2,h/2,204,0,TAU);c.stroke();c.fillStyle='#fff';c.font='bold 74px sans-serif';c.textAlign='center';c.fillText('CAGE',w/2,w/2-6);c.fillStyle='#18d0ff';c.font='bold 54px sans-serif';c.fillText('REGIONAL',w/2,w/2+52);c.fillStyle='#ffd23c';c.font='bold 26px sans-serif';c.fillText('CIRCUITO AMADOR',w/2,w/2+92)});own.push(oc2);
+  const ofl=new THREE.Mesh(new THREE.CircleGeometry(3.7,8),S({map:oc2.t,roughness:.7,metalness:.15}));ofl.rotation.x=-Math.PI/2;ofl.rotation.z=Math.PI/8;ofl.receiveShadow=true;G.add(ofl);
+  const eg=new THREE.Mesh(new THREE.RingGeometry(3.68,3.95,8),B({color:0x18d0ff,fog:false}));eg.rotation.x=-Math.PI/2;eg.rotation.z=Math.PI/8;eg.position.y=.006;G.add(eg);
+  // teto: forro escuro + arcos de treliça de aço + pilares
+  const rf=new THREE.Mesh(new THREE.CircleGeometry(Rn,40),S({color:0x1d2127,roughness:.8,metalness:.4,side:THREE.DoubleSide}));rf.rotation.x=Math.PI/2;rf.position.y=11.8;G.add(rf);
+  const seg=(x1,y1,x2,y2,z)=>{const l=Math.hypot(x2-x1,y2-y1),b=new THREE.Mesh(new THREE.BoxGeometry(l,.22,.22),st);b.position.set((x1+x2)/2,(y1+y2)/2,z);b.rotation.z=Math.atan2(y2-y1,x2-x1);G.add(b)};
+  for(let i=-3;i<=3;i++){const z=i*3.6,hw=Math.sqrt(Rn*Rn-z*z)-.3;let px=-hw,py=7.2;for(let j=1;j<=14;j++){const t=Math.PI-j/14*Math.PI,x=Math.cos(t)*hw,y=7.2+Math.sin(t)*4.4;seg(px,py,x,y,z);px=x;py=y}}
+  for(let i=0;i<8;i++){const a=i/8*TAU+.2,p=new THREE.Mesh(new THREE.BoxGeometry(.5,7.2,.5),st);p.position.set(Math.sin(a)*(Rn-.5),3.6,Math.cos(a)*(Rn-.5));G.add(p)}
+  // tubos de luz fria pendurados (2 luzes reais, o resto é brilho)
+  const tb=B({color:0xeaf4ff,fog:false});for(const z of[-7.2,0,7.2])for(const x of[-4.5,4.5]){const t=new THREE.Mesh(new THREE.BoxGeometry(3.4,.12,.34),tb);t.position.set(x,10.1,z);G.add(t);for(const s of[-1,1]){const ch=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,1.3,4),st);ch.position.set(x+s*1.4,10.75,z);G.add(ch)}}
+  const L1=new THREE.PointLight(0xdfeaff,1.3,20);L1.position.set(4.5,8.6,4);G.add(L1);const L2=new THREE.PointLight(0xdfeaff,1.3,20);L2.position.set(-4.5,8.6,-4);G.add(L2);
+  // anel de LED ciano + banners de patrocinadores locais
+  const led=mk(1024,32,(c,w,h)=>{c.fillStyle='#04060a';c.fillRect(0,0,w,h);c.fillStyle='#18d0ff';c.font='bold 26px sans-serif';c.textAlign='left';const s='CAGE REGIONAL   CARD AMADOR   3 ROUNDS   ';for(let x=0;x<w;x+=c.measureText(s).width)c.fillText(s,x,25)});
+  led.t.repeat.set(2,1);const r1=ring(.6,9.85,led);r1.position.y=3.3;G.add(r1);AR.rib=AR.rib||[];AR.rib.push(led.t);
+  [['AUTO PEÇAS','DO ZÉ','#7a1f1f'],['PADARIA','SANTA LUZIA','#6b4a1a'],['CAGE','REGIONAL','#0f3a66'],['ACADEMIA','IRON','#1b4a3a']].forEach((s,i)=>{const bt=ctCv(256,380,(c,w,h)=>{const q=c.createLinearGradient(0,0,0,h);q.addColorStop(0,s[2]);q.addColorStop(1,'#07090c');c.fillStyle=q;c.fillRect(0,0,w,h);c.fillStyle='#fff';c.font='bold 46px sans-serif';c.textAlign='center';c.fillText(s[0],w/2,140,230);c.fillStyle='#ffd23c';c.font='bold 40px sans-serif';c.fillText(s[1],w/2,210,230)});own.push(bt);
+   const a=i*Math.PI/2+Math.PI/4,p=new THREE.Mesh(new THREE.PlaneGeometry(2.2,3.3),B({map:bt.t,fog:false}));p.position.set(Math.sin(a)*9.6,6.2,Math.cos(a)*9.6);p.lookAt(0,6.2,0);G.add(p)});
+  // arquibancada de madeira e ferro (4 trechos nas diagonais, 3 degraus)
+  {const bg=new THREE.BoxGeometry(2.1,.14,.8),rg=new THREE.BoxGeometry(2.1,.5,.1),pos=[];
+   for(const c0 of[Math.PI/4,3*Math.PI/4,5*Math.PI/4,7*Math.PI/4])for(let row=0;row<3;row++){const r=10.8+row*.95,n=5;for(let q=0;q<n;q++){const a=c0+(q-(n-1)/2)*(2.2/r);pos.push([Math.sin(a)*r,.55+row*.55,Math.cos(a)*r,a])}}
+   const m1=new THREE.InstancedMesh(bg,S({color:0x9a6a36,roughness:.8}),pos.length),m2=new THREE.InstancedMesh(rg,S({color:0x4a5260,roughness:.5,metalness:.7}),pos.length),o=new THREE.Object3D();
+   pos.forEach((p,i)=>{o.position.set(p[0],p[1],p[2]);o.rotation.set(0,p[3],0);o.updateMatrix();m1.setMatrixAt(i,o.matrix);o.position.set(p[0],p[1]-.32,p[2]);o.updateMatrix();m2.setMatrixAt(i,o.matrix)});m1.frustumCulled=m2.frustumCulled=false;G.add(m1,m2)}
+  // tabelas de basquete nas laterais (é ginásio de verdade)
+  for(const sx of[-1,1]){const hx=sx*(Rn-1.4),pl=new THREE.Mesh(new THREE.BoxGeometry(.2,3.6,.2),st);pl.position.set(sx*(Rn-.3),1.8,0);G.add(pl);const bd=new THREE.Mesh(new THREE.BoxGeometry(.06,1.05,1.8),S({color:0xf2f2f2,roughness:.4}));bd.position.set(hx,3.5,0);G.add(bd);const rim=new THREE.Mesh(new THREE.TorusGeometry(.23,.025,6,16),S({color:0xff6a1a,roughness:.4}));rim.rotation.x=Math.PI/2;rim.position.set(hx-sx*.28,3.05,0);G.add(rim)}
+  // placar pendurado com cronômetro de 3 minutos
+  const sbc=ctCv(512,160,()=>{});own.push(sbc);const sb=new THREE.Mesh(new THREE.PlaneGeometry(4.4,1.4),B({map:sbc.t,fog:false}));sb.position.set(0,8.1,-(Rn-.9));G.add(sb);
+  const sbk=new THREE.Mesh(new THREE.BoxGeometry(4.6,1.6,.25),S({color:0x15181c,roughness:.7}));sbk.position.set(0,8.1,-(Rn-.75));G.add(sbk);
+  let lq=-1;AR.cage=t=>{const f=Math.sin(t*50)*(Math.sin(t*.7)>.96?1:0);L1.intensity=1.25+.12*f;L2.intensity=1.25-.1*f;const q=Math.floor(t);if(q!=lq){lq=q;const g=sbc.g,w=512,h=160,s=180-(q%181),mm=Math.floor(s/60),ss=s%60;g.fillStyle='#050608';g.fillRect(0,0,w,h);g.fillStyle='#ff3b30';g.font='bold 30px sans-serif';g.textAlign='center';g.fillText('CAGE REGIONAL',w/2,40);g.fillStyle='#ffd23c';g.font='bold 74px sans-serif';g.fillText(mm+':'+(ss<10?'0':'')+ss,w/2,118);g.fillStyle='#18d0ff';g.font='bold 22px sans-serif';g.fillText('3 ROUNDS · CARD AMADOR',w/2,150);sbc.t.needsUpdate=true}};
+  AR.cage(0)}
  else{const mk=(w,h,fn)=>{const L=ctCv(w,h,fn);L.t.wrapS=THREE.RepeatWrapping;own.push(L);return L},
    led=mk(1024,32,(c,w,h)=>{c.fillStyle='#04060a';c.fillRect(0,0,w,h);c.fillStyle=k==1?'#ffd04a':'#18e0ff';c.font='bold 26px sans-serif';c.textAlign='left';const s=(k==1?'ARENA METROPOLITANA   FIGHT NIGHT   MMAVR2   ':'MEGA ARENA MMAVR   FIGHT NIGHT   MMAVR2   O MAIOR EVENTO   ');for(let x=0;x<w;x+=c.measureText(s).width)c.fillText(s,x,25)});
   led.t.repeat.set(2,1);const r1=ring(.6,9.85,led);r1.position.y=3.3;G.add(r1);AR.rib=[led.t];
@@ -8231,10 +8336,10 @@ function arBuild(k){const G=new THREE.Group(),B=o=>new THREE.MeshBasicMaterial(o
    const bm=B({color:0xff5ad8,transparent:true,opacity:.07,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending,fog:false});AR.bm=[];
    for(let i=0;i<8;i++){const a=i*Math.PI/4,b=new THREE.Mesh(new THREE.ConeGeometry(.9,9,16,1,true),bm.clone());b.material.color.setHSL(i/8,.9,.6);b.position.set(Math.sin(a)*4.8,4.8,Math.cos(a)*4.8);G.add(b);AR.bm.push(b)}}}
  AR.g[k]=G;return G}
-function arenaOn(k){const G=AR.g[k]||arBuild(k);if(AR.dc){hemi.color.setHex(AR.dc[0]);hemi.groundColor.setHex(AR.dc[1]);AR.dc=null}OCT0.forEach(q=>q.visible=k!=0);floor.visible=k!=3;fm.color.set(k==3?0xff9a50:0xffffff);AR.g.forEach(q=>q&&(q.visible=false));G.visible=true;AR.on=k;crowdFill(k==0?0:EST[k].pub);
- hemi.intensity=[.5,.62,.8,.55][k];sun.intensity=[.45,.9,1.2,.5][k];if(k==0){scene.background=new THREE.Color(0x232840);scene.fog=new THREE.Fog(0x232840,12,45);hemi.color.set(0xb9c4ff);hemi.groundColor.set(0x3a3a44);sun.color.set(0xffd9a0)}else if(k==2){hemi.color.set(0xe8ecff)}else if(k==3){AR.dc=[hemi.color.getHex(),hemi.groundColor.getHex()];hemi.color.set(0xffd2a0);hemi.groundColor.set(0x3a2418);scene.background=new THREE.Color(0x120804);scene.fog=new THREE.Fog(0x120804,16,60)}}
+function arenaOn(k){const G=AR.g[k]||arBuild(k);if(AR.dc){hemi.color.setHex(AR.dc[0]);hemi.groundColor.setHex(AR.dc[1]);AR.dc=null}OCT0.forEach(q=>q.visible=k!=0);floor.visible=k!=3&&k!=4;fm.color.set(k==3?0xff9a50:0xffffff);AR.g.forEach(q=>q&&(q.visible=false));G.visible=true;AR.on=k;crowdFill(k==0?0:EST[k].pub);
+ hemi.intensity=[.5,.62,.8,.55,.7][k];sun.intensity=[.45,.9,1.2,.5,.8][k];if(k==0){scene.background=new THREE.Color(0x232840);scene.fog=new THREE.Fog(0x232840,12,45);hemi.color.set(0xb9c4ff);hemi.groundColor.set(0x3a3a44);sun.color.set(0xffd9a0)}else if(k==2){hemi.color.set(0xe8ecff)}else if(k==3){AR.dc=[hemi.color.getHex(),hemi.groundColor.getHex()];hemi.color.set(0xffd2a0);hemi.groundColor.set(0x3a2418);scene.background=new THREE.Color(0x120804);scene.fog=new THREE.Fog(0x120804,16,60)}else if(k==4){AR.dc=[hemi.color.getHex(),hemi.groundColor.getHex()];hemi.color.set(0xdfeaff);hemi.groundColor.set(0x2c3441);scene.background=new THREE.Color(0x0c1016);scene.fog=new THREE.Fog(0x0c1016,18,70)}}
 function arenaOff(){forjaReset();if(AR.dc){hemi.color.setHex(AR.dc[0]);hemi.groundColor.setHex(AR.dc[1]);AR.dc=null}OCT0.forEach(q=>q.visible=true);ENT.gate.forEach(q=>q.visible=true);AR.g.forEach(q=>q&&(q.visible=false));if(AR.on>=0||CRF.v!==1)crowdFill(1);AR.on=-1}
-function arenaTick(dt){if(AR.on<0||MODE!='fight')return;const t=performance.now()/1000;if(AR.on==0&&AR.street)AR.street(t);if(AR.on==3&&AR.forja)AR.forja(t);if(AR.rib)AR.rib.forEach((q,i)=>{q.offset.x=((i?-1:1)*t*.04)%1});
+function arenaTick(dt){if(AR.on<0||MODE!='fight')return;const t=performance.now()/1000;if(AR.on==0&&AR.street)AR.street(t);if(AR.on==3&&AR.forja)AR.forja(t);if(AR.on==4&&AR.cage)AR.cage(t);if(AR.rib)AR.rib.forEach((q,i)=>{q.offset.x=((i?-1:1)*t*.04)%1});
  if(AR.on==2){if(AR.cube)AR.cube.rotation.y=t*.25;if(AR.bm)AR.bm.forEach((b,i)=>{b.rotation.z=Math.sin(t*.7+i)*.4;b.rotation.x=Math.cos(t*.6+i*1.7)*.35});
   if(AR.scr&&((t*5)|0)!=AR.lq){AR.lq=(t*5)|0;AR.scr.forEach((L,i)=>{const g=L.g,w=512,h=288;g.fillStyle='#05070b';g.fillRect(0,0,w,h);const q=g.createLinearGradient(0,0,w,h);q.addColorStop(0,'hsl('+((t*40+i*90)%360)+',90%,45%)');q.addColorStop(1,'#10131a');g.fillStyle=q;g.globalAlpha=.55;g.fillRect(0,0,w,h);g.globalAlpha=1;g.fillStyle='#fff';g.textAlign='center';g.font='bold 62px sans-serif';g.fillText('MMAVR2',w/2,130);g.font='bold 40px sans-serif';g.fillStyle='#ffd23c';g.fillText('FIGHT NIGHT',w/2,200);L.t.needsUpdate=true})}}}
 function cityArenaStart(){const m=CAR&&CAR.prop&&CAR.prop.marcada;if(!m)return;const k=cityEstOf(m);CITY.arena=k;CITY.ff=true;arenaOn(k)}
