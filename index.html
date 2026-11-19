@@ -1173,6 +1173,19 @@ const kqI=new THREE.Quaternion(),kqE=new THREE.Quaternion(),kqU=new THREE.Quater
 // ---------- Golpes, guarda e bloqueio ----------
 // tempos em segundos: w = carga (a luva baixa/recua), s = extensão, h = segura no alvo, r = retorno à guarda
 // tw = giro do tronco, rc = alcance máx. da luva a partir do ombro, lw = posição de carga, po = direção do cotovelo (referencial do peito)
+// ===== NOVO SISTEMA DE "POR BAIXO NO CHÃO" (jogador derrubado, inimigo por cima) =====
+// Ele CONTINUA batendo mesmo que você o segure. Segurar a MÃO dele trava só aquela mão; ele se solta sozinho (rápido, ainda mais com as duas mãos presas).
+// A mão livre bate mesmo em ângulo ruim, mas com frequência menor enquanto você segura a outra. Ele fica ajoelhado em cima de você e NÃO desmonta quando você segura os braços.
+const GRD={on:1,
+ kneel:.36,          // quanto a pelve dele desce a mais, ajoelhado sobre você (0 = como era antes; pelve alvo = .99-(.28+kneel))
+ reach:.35,          // alcance extra do soco quando você está no chão (antes 1,3x; agora 1,3x+reach)
+ breakOne:[1,2.6],   // segundos pra ele se soltar com UMA mão presa (sorteado; mais rápido se ele é nível alto e descansado)
+ breakBoth:[.35,.9], // segundos com AS DUAS mãos presas: muito mais rápido
+ heldIv:2.4,         // com 1 mão presa: intervalo entre socos x2,4 (~40% da frequência)
+ bodyIv:1.3,         // cabeça/tronco presos: intervalo x1,3 (ele ainda bate)
+ comboOne:.6,        // com 1 mão presa: chance de emendar o próximo soco x0,6
+ revOne:.6,revBoth:1.6,revNeed:1.2,revDecay:1   // REVERSÃO: segurar ele acumula progresso (1 mão ~2 s, 2 mãos ~0,75 s); soltar faz cair 1 por segundo
+};
 const PUNCH={
  jab:{w:.22,s:.075,h:.07,r:.17,tw:.2,rc:.75,dmg:4,lw:sd=>[sd*.16,.03,.05],po:sd=>[sd*.6,-1,-.1]},
  cross:{w:.34,s:.09,h:.08,r:.24,tw:.5,rc:.75,dmg:7.5,lw:sd=>[sd*.2,-.02,-.04],po:sd=>[sd*.6,-1,-.1]},
@@ -1285,7 +1298,8 @@ function grFloorTick(dt,vr){if(GRF.t>0)GRF.t-=dt;
  if(PL.fd&&PL.lock>0&&PL.lie){PL.lock-=dt;if(PL.lock<=0){PL.lock=0;hands.forEach(h=>buzz(h,.5,80))}}
  const k=!!keys['g'];if(k&&!PL._g){if(!PL.fd)plDown();else if(PL.lock<=0)plUp()}PL._g=k;   // teclado: G derruba (teste) / levanta depois dos 10 s
  if(PL.rvCd>0)PL.rvCd-=dt;
- if(PL.fd&&PL.lock<=0&&typeof enemy!='undefined'){const kr=!!keys['r'],hold=enemy.hn>0&&(hands[0].btn||hands[1].btn);if((kr||hold)&&!(PL.rvCd>0)){PL.rvh=(PL.rvh||0)+dt;if(kr||PL.rvh>.45){PL.rvh=0;plReverse()}}else PL.rvh=0}   // R, ou segurar o inimigo (mão em cima dele) = reverter
+ if(PL.fd&&PL.lock<=0&&typeof enemy!='undefined'){const kr=!!keys['r'],hold=enemy.hn>0&&(hands[0].btn||hands[1].btn);if(GRD.on){const nb=(hands[0].btn?1:0)+(hands[1].btn?1:0);if(kr&&!(PL.rvCd>0)){PL.rvh=0;plReverse()}else if(hold&&!(PL.rvCd>0)){PL.rvh=(PL.rvh||0)+dt*(nb>1?GRD.revBoth:GRD.revOne);if(PL.rvh>=GRD.revNeed){PL.rvh=0;plReverse()}}else PL.rvh=Math.max(0,(PL.rvh||0)-dt*GRD.revDecay)}
+   else if((kr||hold)&&!(PL.rvCd>0)){PL.rvh=(PL.rvh||0)+dt;if(kr||PL.rvh>.45){PL.rvh=0;plReverse()}}else PL.rvh=0}   // R, ou segurar o inimigo (mão em cima dele) = reverter
  if(PL.fd&&PL.lock<=0&&hands[0].btn&&hands[1].btn&&!(typeof enemy!='undefined'&&enemy.hn>0)){PL.gup+=dt;if(PL.gup>.6)plUp()}else PL.gup=0;   // as duas mãos (botões) seguradas = levantar
  if(vr&&PL.fd&&PL.lock<=0&&hy>1.1){PL.hup=(PL.hup||0)+dt;if(PL.hup>.5){PL.hup=0;plUp()}}else PL.hup=0;   // VR: liberado e de pé de verdade = levanta
  grHud()}
@@ -1388,15 +1402,25 @@ class Enemy{
   let dH=9,dB=9;const bp=grBodyAim(tp,pp,bdV);for(const h of hands){dH=Math.min(dH,h.pos.distanceTo(tp));dB=Math.min(dB,h.pos.distanceTo(bp))}
   const cH=dH<.28,cB=dB<.28;if(Math.random()>=GR_NT[Math.max(0,Math.min(3,this.grLv|0))])return cur;   // não percebeu: segue a tendência do nível dele
   if(cH&&!cB)return Math.random()<.9?1:0;if(cB&&!cH)return Math.random()<.9?0:1;return cur}
+ grdIv(){const P=this.P,hd=n=>P['h'+n].held||P['fa'+n].held||P['ua'+n].held,a=(hd('L')?1:0)+(hd('R')?1:0),bd=this.parts.some(p=>p.held&&!/^(ua|fa|h[LR]|th|sh|ft)/.test(p.name));return(a==1?GRD.heldIv:1)*(bd?GRD.bodyIv:1)}   // multiplicador do intervalo entre socos
+ grdBreak(dt){const P=this.P,arm=n=>[P['h'+n],P['fa'+n],P['ua'+n]],who=n=>{const a=arm(n);for(const h of hands)if(h.held&&a.includes(h.held))return h;return null};
+  const hl=who('L'),hr=who('R'),nh=(hl?1:0)+(hr?1:0),g=this.gb||(this.gb={L:0,R:0,tL:0,tR:0}),k=(1+.18*Math.max(0,(this.grLv|0)-1))*(.6+.6*Math.min(1,this.stam/100));   // mais forte e descansado = solta mais rápido
+  for(const[n,hh]of[['L',hl],['R',hr]]){
+   if(!hh){g[n]=0;g['t'+n]=0;continue}
+   const rg=nh>1?GRD.breakBoth:GRD.breakOne;
+   if(!g['t'+n]||(nh>1&&g['t'+n]>GRD.breakBoth[1]/k+.01))g['t'+n]=(rg[0]+Math.random()*(rg[1]-rg[0]))/k;   // a 2ª mão presa encurta o tempo na hora
+   g[n]+=dt;
+   if(g[n]>=g['t'+n]){hh.rel();hh.rgL=1;buzz(hh,1,140);g[n]=0;g['t'+n]=0;this.grCost(3);snd(210,.4);if(!(GRF.t>0))grFlash('ELE SE SOLTOU!','Segure a mão dele de novo','#ffb020',.9);dbg('A MÃO DELE SE SOLTOU (por baixo)')}}}
  grTick(dt,tp,dist){
   const P=this.P,pel=P.pelvis,lv=this.grLv;
   if(this.rvF>0)this.rvF-=dt;
+  if(GRD.on&&PL.fd&&MODE=='fight'&&this.st=='fight')this.grdBreak(dt);
   if(MODE!='fight'||this.st!='fight'||lv<1){this.gr=null;this.fdb=null;return}
   // B) jogador deitado: socos em sequência, descansa, repete (nível 3 insiste; nível 1-2 bate menos e deixa levantar)
   if(PL.fd){
    this.gr=null;
    // você por baixo: ele soca À VONTADE, sem pausa e sem limite de sequência (você se defende com bloqueio e esquiva)
-   this.fdb=null;if(!this.atk&&this.nextAtk>.1)this.nextAtk=.1;
+   this.fdb=null;{const iv=GRD.on?this.grdIv():1;if(!this.atk&&this.nextAtk>.1*iv)this.nextAtk=.1*iv}
    return}
   this.fdb=null;
   // A) inimigo no chão com você por cima: a mão vai pro seu rosto; se você não segurar, ele reverte
@@ -1602,7 +1626,7 @@ class Enemy{
   if(ga&&tg>0&&!held&&pel.p.y<.8)this.gu=1;else if(!ga||tg<=0||held||pel.p.y>.9)this.gu=0;
   this.gtu=this.gu&&pel.p.y<.75?this.gtu+dt:0;
   if(!this.gu||!ga||held)this.gp=0;else if(!this.gp&&down)this.gpInit(tp);   // levantar em fases só começa quando ele está caído
-  {const cc=(!BXR.on&&PL.gnd&&alive&&!held&&!down&&!this.gp&&this.st=='fight'&&!this.rest&&MODE=='fight'&&Math.hypot(tp.x-pel.p.x,tp.z-pel.p.z)<1.7)?1:0;this.cr=(this.cr||0)+(cc-(this.cr||0))*Math.min(1,dt*(cc?3:5))}   // cr: 0..1 = quanto ele está agachado sobre o jogador caído
+  {const cc=(!BXR.on&&PL.gnd&&alive&&(GRD.on?!(hH||hT||hL==3):!held)&&!down&&!this.gp&&this.st=='fight'&&!this.rest&&MODE=='fight'&&Math.hypot(tp.x-pel.p.x,tp.z-pel.p.z)<1.7)?1:0;this.cr=(this.cr||0)+(cc-(this.cr||0))*Math.min(1,dt*(cc?3:5))}   // cr: 0..1 = quanto ele está agachado sobre o jogador caído
   this.hipLim(this.gp||this.cr>.05?2:down&&!held?1:0);if(this.gp)this.getUp(dt,tp);
   if(this.gpw&&!this.gp&&alive&&!held&&pel.p.y>.8)this.bal=Math.max(this.bal,.85);this.gpw=this.gp;   // acabou de levantar: equilíbrio como depois do knockdown (com bal ~.5 o s caía pra ~.35 e ele cedia sozinho)
   if(BXR.on){this.bal=Math.max(this.bal,.55);if(tg<.9&&!down&&!this.gp)tg=.9;if(!held&&this.st!='fin'&&this.gt>5)this.bxUp()}   // BOXE: se cair, levanta sozinho (getUp normal, pernas com força); só se ficar preso 5 s no chão é recolocado em pé   // BOXE: impossível cair / perder o equilíbrio
@@ -1655,7 +1679,7 @@ class Enemy{
   const lp=this.rest&&!this.rw&&alive&&!held&&(!this.gp||pel.p.y>.75);if(lp){this.gp=0;this.gu=0}   // parado no intervalo: as pernas ficam numa pose de pé fixa (a física deixava joelho/pé tortos)
   // sustentação (pernas carregam o peso; pelve só assiste)
   const hs=held?(hH||hT?.8:hL==3?.6:hL?.9:.98):1,Mt=this.mass,mu=pel.mass+P.abdomen.mass+ch.mass+P.head.mass;
-  if(!this.gp)F(pel,0,Math.max(0,s*hs*pel.mass*(4.9+4*(this.cr||0)+100*cl(.99-.28*(this.cr||0)-pel.p.y,-.1,.1)-14*pel.v.y)),0);
+  if(!this.gp)F(pel,0,Math.max(0,s*hs*pel.mass*(4.9+4*(this.cr||0)+100*cl(.99-(.28+GRD.kneel)*(this.cr||0)-pel.p.y,-.1,.1)-14*pel.v.y)),0);
   if(this.gu&&!this.gp){ // empurra o quadril pra cima (sobe a ~.45 m/s; fica mais forte se travar) assim que o tronco estiver ereto
    const lm=P.thL.mass+P.shL.mass+P.ftL.mass+P.thR.mass+P.shR.mass+P.ftR.mass,cu=vF.set(0,1,0).applyQuaternion(ch.q).y,
     gl=cl((.95-pel.p.y)/.4,0,1)*cl((cu-.35)/.5,0,1),vt=.45+Math.min(.55,this.gtu*.2);
@@ -1716,13 +1740,13 @@ class Enemy{
   const wH=this.wH,wB=this.wB;
   // guarda: alta (luvas no queixo, cotovelos pra baixo) com o jogador perto; relaxada e baixa quando ele está longe; tonto = guarda cai
   {const near=dist<1.5?1:dist>2?0:1-(dist-1.5)/.5,glT=this.bxd?1:(this.wind>0?0:near)*(.8*cl((this.bal-.1)/.3,0,1)+.2*cl((this.bal-.2)/.5,0,1))*(this.rest?0:1);this.gl+=(glT-this.gl)*Math.min(1,dt*(glT>this.gl?7:2.5))}
-  if(!WRR.on&&!this.atk&&!this.tk&&!this.gp&&!this.bxd&&this.nextAtk<0&&(this.sty!='contra'||this.cnW>0||this.nextAtk<-1.2)&&dist<(gnd?.95:1.0+.03*(DIF.ag-1)+(this.sty?BXS[this.sty].rc:0))&&(s>.6||gnd)&&!(hH||hT||hL==3)&&(fr('L')||fr('R'))&&(this.ms.mode!='flee'&&(this.ms.mode!='back'||dist<.8))&&PL.hp>0&&this.wind<=0&&this.stam>=(PL.fd?30:8)&&!this.rest&&!(this.bg>0)&&!(DIF.bk&&(this.wH>.25||this.wB>.25))){const fu=this.cf&&this.nextAtk>-.35;this.cf=false;if(!fu)this.cmb=0;const r=Math.random();let k=r<.4-.08*(DIF.ag-1)?'jab':r<.7-.1*(DIF.ag-1)?'cross':'hook',q0;this.cnW=0;if(this.sty=='pressao'&&Math.random()<.5)k='hook';else if(this.sty=='alcance'&&Math.random()<.55)k=Math.random()<.6?'jab':'cross';
+  if(!WRR.on&&!this.atk&&!this.tk&&!this.gp&&!this.bxd&&this.nextAtk<0&&(this.sty!='contra'||this.cnW>0||this.nextAtk<-1.2)&&dist<(gnd?.95:1.0+.03*(DIF.ag-1)+(this.sty?BXS[this.sty].rc:0))&&(s>.6||gnd||(GRD.on&&PL.fd))&&!(!(GRD.on&&PL.fd)&&(hH||hT||hL==3))&&(fr('L')||fr('R'))&&(this.ms.mode!='flee'&&(this.ms.mode!='back'||dist<.8))&&PL.hp>0&&this.wind<=0&&this.stam>=(PL.fd?30:8)&&!this.rest&&!(this.bg>0)&&!(DIF.bk&&(this.wH>.25||this.wB>.25))){const fu=this.cf&&this.nextAtk>-.35;this.cf=false;if(!fu)this.cmb=0;const r=Math.random();let k=r<.4-.08*(DIF.ag-1)?'jab':r<.7-.1*(DIF.ag-1)?'cross':'hook',q0;this.cnW=0;if(this.sty=='pressao'&&Math.random()<.5)k='hook';else if(this.sty=='alcance'&&Math.random()<.55)k=Math.random()<.6?'jab':'cross';
    if(fu&&this.pn){q0=this.pn=='L'?'R':'L';k=Math.random()<.25?'hook':q0=='L'?'jab':'cross'}else q0=k=='jab'?'L':k=='cross'?'R':Math.random()<.5?'L':'R';   // combo: alterna a mão
    const q1={...PUNCH[k]};if(fu)q1.w*=.7;if(PL.fd){q1.w*=.55;q1.r*=.6;q1.h*=.7}this.atk={k,n:fr(q0)?q0:q0=='L'?'R':'L',q:q1,t:0,hit:0,ex:0,rx:null,bd:PL.gnd?(Math.random()<(PL.fd?.5:.45)*GR_BD[Math.max(0,Math.min(3,this.grLv|0))]?1:0):this.bxPick(tp),lk:null};this.stam=Math.max(0,this.stam-(k=='jab'?5:8)*(PL.fd?.6:1)/DIF.st);this.sr=1.2}
   if(this.atk&&!fr(this.atk.n)){this.atk=null;this.cf=false;this.cmb=0}   // braço preso: o soco morre
   if(this.atk){const q=qOf(this.atk);this.atk.t+=dtA;if(this.atk.t>q.w+q.s+q.h+q.r){this.pn=this.atk.n;this.atk=null;this.cmb=(this.cmb||0)+1;
-   if(this.cmb<(PL.fd?(this.stam>75?6:this.stam>55?4:this.stam>40?3:2):Math.min(4,1+Math.round(DIF.ag))+(this.sty=='pressao'?2:0))&&this.stam>=(PL.fd?32:8)&&!(this.bg>0)&&Math.random()<(PL.fd?.88:.55+.14*(DIF.ag-1))){this.cf=true;this.nextAtk=.04}   // emenda o próximo soco com a outra mão
-   else{this.cmb=0;this.cf=false;this.nextAtk=(PL.fd?.3+Math.random()*.45:.55+Math.random()*1.2)*(1+(1-this.stam/100)*1.2)/DIF.ag}}}
+   if(this.cmb<(PL.fd?(this.stam>75?6:this.stam>55?4:this.stam>40?3:2):Math.min(4,1+Math.round(DIF.ag))+(this.sty=='pressao'?2:0))&&this.stam>=(PL.fd?32:8)&&!(this.bg>0)&&Math.random()<(PL.fd?.88*((GRD.on&&((!fr('L'))!=(!fr('R'))))?GRD.comboOne:1):.55+.14*(DIF.ag-1))){this.cf=true;this.nextAtk=.04}   // emenda o próximo soco com a outra mão
+   else{this.cmb=0;this.cf=false;this.nextAtk=(PL.fd?.3+Math.random()*.45:.55+Math.random()*1.2)*(1+(1-this.stam/100)*1.2)/DIF.ag*(PL.fd&&GRD.on?(((!fr('L'))!=(!fr('R')))?GRD.heldIv:1)*((hH||hT)?GRD.bodyIv:1):1)}}}
   if(!this.cqs){this.cqs=ch.q.clone();this.cps=ch.p.clone()}
   {const k=1-Math.exp(-dt*(this.atk?40:22));this.cqs.slerp(ch.q,k);this.cps.lerp(ch.p,k)}   // peito filtrado: tira o tremor do corpo físico dos braços
   const cs={q:this.cqs,p:this.cps};
@@ -1749,7 +1773,7 @@ class Enemy{
     else{const u=Math.min(1,(t-T3)/pk.r),e2=u*u*(3-2*u);ex=(a.rx==null?1:a.rx)*(1-e2);ps=1-e2;wn=34} // retorno à guarda
     a.ex=ex;
     ikS.z+=.09*ex-.04*ld;ikS.y-=.02*ld;                                             // ombro recua na carga e avança no disparo (alcança o rosto)
-    ikT.copy(kA).sub(ikS);const L=ikT.length()||1;ikT.multiplyScalar(Math.min(L-.04,pk.rc*(PL.gnd?1.3+.25*(this.cr||0):1))/L).add(ikS); // alvo: cabeça do jogador (limitado ao alcance do braço)
+    ikT.copy(kA).sub(ikS);const L=ikT.length()||1;ikT.multiplyScalar(Math.min(L-.04,pk.rc*(PL.gnd?1.3+GRD.reach+.25*(this.cr||0):1))/L).add(ikS); // alvo: cabeça do jogador (limitado ao alcance do braço)
     ikW.set(...pk.lw(sd));
     ikH.lerp(ikW,ld).lerp(ikT,ex);
     ikP.lerp(ikPj.set(...pk.po(sd)),ps);
@@ -4268,7 +4292,7 @@ addEventListener('pagehide',()=>carPosTick(0,true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)try{carPosTick(0,true)}catch(e){}});
 // grava onde o carro está AGORA (antes de entrar no sparring/luta da academia): o salvamento normal só roda a cada 3 s e o carro voltava pro pátio
 let CARRO_ACAD='';   // academia (boxe/wrest) onde a luta aconteceu: se o carro salvo não puder voltar pro lugar, ele fica na entrada dela
-function carroEntrada(id){try{const L=lojaLots()[id];if(!L||!L.door)return null;if(id=='boxe')return{x:Math.round((L.door.x+10)*100)/100,z:Math.round((L.door.z-9.5)*100)/100};return{x:Math.round((L.door.x+6)*100)/100,z:Math.round((L.door.z-7)*100)/100}}catch(e){return null}}
+function carroEntrada(id){try{const L=lojaLots()[id];if(!L||!L.door)return null;if(id=='boxe'||id=='wrest')return{x:Math.round((L.door.x+10)*100)/100,z:Math.round((L.door.z-9.5)*100)/100};return{x:Math.round((L.door.x+6)*100)/100,z:Math.round((L.door.z-7)*100)/100}}catch(e){return null}}
 function carroRestaura(){try{if(!CAR||!CARRO.g||DRV.on)return;const cp=CAR.carp;let x,z,yw;
  const ok=cp&&isFinite(+cp.x)&&isFinite(+cp.z)&&!(typeof lojaHit=='function'&&lojaHit(+cp.x,+cp.z,2)&&!(typeof bxLotIn=='function'&&bxLotIn(+cp.x,+cp.z)));
  if(ok){x=+cp.x;z=+cp.z;yw=isFinite(+cp.yaw)?+cp.yaw:CARRO.yaw}
@@ -5396,7 +5420,7 @@ function lojaBuild(l,L){const G=new THREE.Group(),Lm=(c,o)=>new THREE.MeshLamber
  const sk=cdCanvas(512,128),g=sk.x;g.fillStyle=l.cor;g.fillRect(0,0,512,128);g.fillStyle='#fff';g.textAlign='center';g.font='bold 54px sans-serif';g.fillText(l.sign||'CONCESSIONÁRIA',256,68,480);g.font='bold 24px sans-serif';g.fillText(l.sub||'CARROS NOVOS · ENTRE E CONFIRA',256,106,480);sk.t.needsUpdate=true;
  const SM=new THREE.MeshBasicMaterial({map:sk.t,side:THREE.DoubleSide}),pl=new THREE.Mesh(new THREE.PlaneGeometry(W-1,1.5),SM);pl.rotation.y=Math.PI;pl.position.set(cx,H-.8,zf-.12);G.add(pl);
  const px=L.x0+6,pz=L.z0+3;bx(mW,.4,11,.4,px,0,pz);for(const s of[-1,1]){const q=new THREE.Mesh(new THREE.PlaneGeometry(7,1.75),SM);q.position.set(px,10,pz+s*.23);if(s<0)q.rotation.y=Math.PI;G.add(q)}   // totem alto, visível da rua
- if(l.id=='boxe')try{bxLotBuild(G,l,L,Lm)}catch(e){console.warn('estacionamento',e)}
+ if(l.id=='boxe'||l.id=='wrest')try{bxLotBuild(G,l,L,Lm)}catch(e){console.warn('estacionamento',e)}
  L.g=G;G.position.y=Ht(cx,hz);cityG.add(G)}
 function lojaInterior(l,L){if(l.id=='eletro')return eletroInterior(l,L);if(l.id=='boxe')return boxeInterior(l,L);if(l.id=='wrest')return wrestInterior(l,L);const I=new THREE.Group(),cx=L.cx,hz=L.hz,zf=hz-l.D/2,Lm=(c,o)=>new THREE.MeshLambertMaterial(Object.assign({color:c},o||{})),
  bx=(m,w,h,d,x,y,z,P)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y+h/2,z);(P||I).add(o);return o},
@@ -6859,12 +6883,13 @@ function ctNodes(){if(CT_ND)return CT_ND;const N=CT.N,n=N+1,A=new Float32Array(n
 // ======================= ESTACIONAMENTO DA ACADEMIA DE BOXE =======================
 // Pátio da frente da academia (48 m de largura) com vagas pintadas, entrada de carro pela calçada e placa. O carro pode entrar, estacionar e
 // fica salvo na vaga (CAR.carp) enquanto você treina/luta. O chão do pátio fica a 17 cm (topo da calçada), então Ht() devolve essa altura.
-let BXLOT=null;
-function bxLot(){if(BXLOT)return BXLOT;try{const L=lojaLots().boxe;if(!L)return null;const dx=L.door.x;BXLOT={dx,x0:dx-24,x1:dx+24,z0:L.z0,z1:L.door.z-.5,zs:L.z0-CT.SW-.3};return BXLOT}catch(e){return null}}
-function bxLotIn(x,z){const q=bxLot();return !!q&&x>q.x0&&x<q.x1&&z>=q.z0&&z<q.z1}
-function bxLotCar(x,z){const q=bxLot();if(!q)return false;return bxLotIn(x,z)||(Math.abs(x-q.dx)<4.5&&z>q.zs&&z<q.z0)}
-function bxLotH(x,z){const q=bxLot();if(!q)return -1;if(bxLotIn(x,z))return .17;if(Math.abs(x-q.dx)<4.5&&z>q.zs&&z<q.z0)return .02+.15*(z-q.zs)/(q.z0-q.zs);return -1}
-function bxLotBuild(G,l,L,Lm){const q=bxLot();if(!q)return;const dx=q.dx,z0=q.z0,z1=q.z1,gm=new THREE.BoxGeometry(1,1,1),ma=Lm('#3a3d43'),mw=new THREE.MeshBasicMaterial({color:0xf1f1ee}),my=new THREE.MeshBasicMaterial({color:0xf2c14e}),mc=Lm('#b9b6ad'),mp=Lm('#2a2c31');
+const BXLOTS={};   // pátios das academias de boxe e de wrestling (mesmo desenho)
+function bxLot(id){id=id||'boxe';if(BXLOTS[id])return BXLOTS[id];try{const L=lojaLots()[id];if(!L)return null;const dx=L.door.x;return BXLOTS[id]={dx,x0:dx-24,x1:dx+24,z0:L.z0,z1:L.door.z-.5,zs:L.z0-CT.SW-.3}}catch(e){return null}}
+const BXIDS=['boxe','wrest'];
+function bxLotIn(x,z){for(const id of BXIDS){const q=bxLot(id);if(q&&x>q.x0&&x<q.x1&&z>=q.z0&&z<q.z1)return true}return false}
+function bxLotCar(x,z){if(bxLotIn(x,z))return true;for(const id of BXIDS){const q=bxLot(id);if(q&&Math.abs(x-q.dx)<4.5&&z>q.zs&&z<q.z0)return true}return false}
+function bxLotH(x,z){for(const id of BXIDS){const q=bxLot(id);if(!q)continue;if(x>q.x0&&x<q.x1&&z>=q.z0&&z<q.z1)return .17;if(Math.abs(x-q.dx)<4.5&&z>q.zs&&z<q.z0)return .02+.15*(z-q.zs)/(q.z0-q.zs)}return -1}
+function bxLotBuild(G,l,L,Lm){const q=bxLot(l.id);if(!q)return;const dx=q.dx,z0=q.z0,z1=q.z1,gm=new THREE.BoxGeometry(1,1,1),ma=Lm('#3a3d43'),mw=new THREE.MeshBasicMaterial({color:0xf1f1ee}),my=new THREE.MeshBasicMaterial({color:0xf2c14e}),mc=Lm('#b9b6ad'),mp=Lm('#2a2c31');
  const bx=(m,w,h,d,x,y,z,ry)=>{const o=new THREE.Mesh(gm,m);o.scale.set(w,h,d);o.position.set(x,y,z);if(ry)o.rotation.y=ry;G.add(o);return o};
  bx(ma,48,.06,z1-z0,dx,.14,(z0+z1)/2);   // asfalto do pátio (topo a 17 cm)
  const a=Math.atan2(.15,z0-q.zs),rl=Math.hypot(.15,z0-q.zs);   // rampa de entrada atravessando a calçada
@@ -6875,7 +6900,7 @@ function bxLotBuild(G,l,L,Lm){const q=bxLot();if(!q)return;const dx=q.dx,z0=q.z0
  for(const[c,w]of[[-15,18],[15,18]]){bx(mw,w,.012,.12,dx+c,.178,zB1);bx(mw,w,.012,.12,dx+c,.178,zA0)}   // fundo das vagas (lado da rua e lado da academia)
  for(const off of[-24,24])bx(my,.14,.014,z1-z0-.2,dx+off,.179,(z0+z1)/2);   // faixa amarela nas bordas
  for(const off of[-22.5,-19.5,-16.5,-13.5,-10.5,-7.5,7.5,10.5,13.5,16.5,19.5,22.5]){bx(mc,1.9,.14,.22,dx+off,.24,zA1-.1);bx(mc,1.9,.14,.22,dx+off,.24,zB0+.1)}   // calços de roda
- const sk=cdCanvas(512,160),g=sk.x;g.fillStyle='#0b4fb3';g.fillRect(0,0,512,160);g.fillStyle='#fff';g.font='bold 120px sans-serif';g.textAlign='center';g.fillText('P',90,124);g.font='bold 40px sans-serif';g.fillText('ESTACIONAMENTO',320,76,300);g.font='bold 26px sans-serif';g.fillStyle='#ffd04a';g.fillText('ACADEMIA DE BOXE',320,118,300);sk.t.needsUpdate=true;
+ const sk=cdCanvas(512,160),g=sk.x;g.fillStyle='#0b4fb3';g.fillRect(0,0,512,160);g.fillStyle='#fff';g.font='bold 120px sans-serif';g.textAlign='center';g.fillText('P',90,124);g.font='bold 40px sans-serif';g.fillText('ESTACIONAMENTO',320,76,300);g.font='bold 26px sans-serif';g.fillStyle='#ffd04a';g.fillText(l.id=='wrest'?'ACADEMIA DE WRESTLING':'ACADEMIA DE BOXE',320,118,300);sk.t.needsUpdate=true;
  const SM=new THREE.MeshBasicMaterial({map:sk.t,side:THREE.DoubleSide});
  for(const sx of[-6.2,6.2]){bx(mp,.18,3.6,.18,dx+sx,.17+1.8,z0+.8);const pl=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1),SM);pl.position.set(dx+sx,.17+3.9,z0+.8);G.add(pl)}   // placas dos dois lados da entrada
  for(const sx of[-16,0,16]){bx(mp,.16,5,.16,dx+sx,.17+2.5,z0+7.8);bx(new THREE.MeshBasicMaterial({color:0xfff6dc}),.9,.14,.5,dx+sx,.17+5.05,z0+7.8)}}   // postes de luz
@@ -7095,8 +7120,9 @@ function cityWalkFix(p){const W=CITY.wp,ok=ctWalkOK(p.x,p.z);if(ok){W.x=p.x;W.z=
 // colisão do carro: 9 pontos do corpo; desliza num eixo se der, senão volta. Devolve a nova velocidade
 function cityCarHit(v,f,ox,oz,dh){const S=DRV.S;
  const ok=(ax,az,h)=>{const fx=Math.cos(h),fz=-Math.sin(h),rx=Math.sin(h),rz=Math.cos(h),hw=S.W/2+.05,a=-S.ro,b=S.L-S.ro;for(const t of[a,(a+b)/2,b])for(const s of[-hw,0,hw])if(ctSolidCar(ax+fx*t+rx*s,az+fz*t+rz*s))return false;return true};
- const h=DRV.h;if(ok(DRV.ax,DRV.az,h)){DRV.cok=true;return v}
+ const h=DRV.h;if(ok(DRV.ax,DRV.az,h)){DRV.cok=true;DRV.stk=0;return v}
  if(DRV.cok===false)return v;   // já estava preso (nasceu dentro de algo): deixa sair
+ {const bf=ok(ox+f.x*.4,oz+f.z*.4,h)||ok(ox-f.x*.4,oz-f.z*.4,h);if(bf)DRV.stk=0;else if((DRV.stk=(DRV.stk|0)+1)>25){DRV.cok=false;DRV.stk=0;return v}}   // travado batendo sem sair do lugar (ex.: estacionado na academia): libera o carro até voltar a um lugar válido
  const nx=DRV.ax,nz=DRV.az;let im=1;
  if(ok(nx,oz,h)){DRV.az=oz;im=.3}else if(ok(ox,nz,h)){DRV.ax=ox;im=.3}else if(ok(ox,oz,h)){DRV.ax=ox;DRV.az=oz}else{DRV.ax=ox;DRV.az=oz;DRV.h-=dh;if(!ok(ox,oz,DRV.h))DRV.cok=false}
  if(Math.abs(v)>1.2){snd(120,Math.min(.9,Math.abs(v)/10));hands.forEach(q=>buzz(q,.7,90))}
